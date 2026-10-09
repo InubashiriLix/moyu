@@ -1,0 +1,55 @@
+name: Check and build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Install browser test engines
+        run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:e2e
+      - name: Build macOS application
+        if: runner.os == 'macOS'
+        run: npm run tauri -- build --bundles app,dmg
+      - name: Build Linux packages
+        if: runner.os == 'Linux'
+        run: npm run tauri -- build --bundles appimage,deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moyu-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-traces-${{ runner.os }}
+          path: test-results/

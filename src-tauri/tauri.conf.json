@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Moyu",
+  "version": "0.1.0",
+  "identifier": "app.moyu.reader",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "enableGTKAppId": true,
+    "macOSPrivateApi": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Utility",
+    "shortDescription": "A quiet little novel reader",
+    "resources": {
+      "../src/assets/fonts/OFL.txt": "licenses/JetBrainsMono-OFL.txt",
+      "../src/assets/fonts/NERD-FONTS-LICENSE.txt": "licenses/Nerd-Fonts-LICENSE.txt"
+    },
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns"],
+    "macOS": { "minimumSystemVersion": "13.0", "signingIdentity": "-" },
+    "linux": { "deb": {}, "appimage": {} }
+  }
+}

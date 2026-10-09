@@ -1,0 +1,17 @@
+// Copy these blocks into ~/.config/niri/config.kdl.
+// Keep the application at normal compositor opacity: transparency is controlled
+// independently for text and background inside Moyu.
+window-rule {
+    match app-id=r#"^app\.moyu\.reader$"#
+    open-floating true
+    draw-border-with-background false
+    focus-ring { off; }
+    border { off; }
+    on-xdg-activate "focus"
+}
+
+binds {
+    // Point to the executable / AppImage if "moyu" is not on PATH.
+    // No key-repeat: holding the shortcut should not flash the reader repeatedly.
+    Ctrl+Alt+M repeat=false { spawn "moyu" "--toggle"; }
+}
