@@ -168,10 +168,14 @@ function renderPanel() {
     case 'help':
       panelElement.innerHTML = `${panelHeader('键位帮助')}<div class="panel-body"><p class="note">正文区域支持 Vim 常用键位；输入框中正常输入。</p><dl class="key-list">${[['j / k', '向下 / 向上滚动'], ['5j / 3k', '数字前缀：重复移动'], ['Ctrl+d / u', '向下 / 向上半页'], ['Ctrl+f / b', '向下 / 向上一页'], ['gg / G', '书首 / 书尾'], ['50G', '跳到全书 50%'], ['/', '搜索整本书'], ['n / N', '下一个 / 上一个结果'], ['o / s / t', '打开书 / 设置 / 目录'], ['m{a-z}', '记录书签'], ['’{a-z}', '跳到书签'], [':', '命令行'], ['Esc', '关闭当前面板'], ['?', '显示帮助']].map(([key, title]) => `<div><dt><kbd>${key}</kbd></dt><dd>${title}</dd></div>`).join('')}</dl><p class="note">命令行命令：<code>:index</code> 目录、<code>:set</code> 设置、<code>:font increase|decrease</code> 字号、<code>:marks</code> 书签、<code>:q</code> 关面板、<code>:qa!</code> 退出。面板内 <kbd>j</kbd>/<kbd>k</kbd> 选择、<kbd>Enter</kbd> 确认、设置页 <kbd>h</kbd>/<kbd>l</kbd> 调节。</p><p class="note">${data.wayland ? '全局隐藏 / 恢复由窗口管理器绑定 moyu --toggle。' : `全局隐藏 / 恢复：${escape(prefs.shortcut)}`}</p><p class="note">拖动窗口顶部可移动，拖动边缘可缩放。关闭窗口会隐藏，设置中可退出。</p></div>`;
       break;
-    case 'search':
+    case 'search': {
       panelElement.innerHTML = `<form class="search-form"><span aria-hidden="true">/</span><input type="search" name="query" value="${escape(query)}" placeholder="搜索整本书" aria-label="搜索整本书" autocomplete="off"><span class="search-count"></span><button type="button" class="icon-button" data-action="previous" title="上一个结果" aria-label="上一个结果">↑</button><button type="button" class="icon-button" data-action="next" title="下一个结果" aria-label="下一个结果">↓</button><button type="button" class="icon-button" data-action="close" aria-label="关闭搜索">×</button></form>`;
       updateSearchCount();
-      requestAnimationFrame(() => { const input = panelElement.querySelector<HTMLInputElement>('input')!; input.focus(); input.select(); });
+      const input = panelElement.querySelector<HTMLInputElement>('input')!;
+      input.focus();
+      input.select();
+      break;
+    }
   }
   if (panel !== 'search') syncPanelCursor();
 }
