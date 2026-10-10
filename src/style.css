@@ -86,6 +86,14 @@ code { font-size: 10px; font-family: ui-monospace, monospace; }
 .action-row { display: flex; justify-content: space-between; gap: 8px; }
 .action-row .secondary { font-size: 10px; padding: 6px 9px; }
 .toc-list { padding: 8px; }
+.panel-filter { margin-bottom: 8px; }
+.panel-list { display: flex; flex-direction: column; }
+.toc-item.active, .recent-item.active { background: var(--soft); box-shadow: inset 2px 0 0 var(--accent); color: var(--accent); }
+.panel-body button.active, .panel-body select.active, .panel-body input.active { outline: 1px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
+.cmdline { position: absolute; z-index: 8; left: 5px; right: 5px; bottom: 5px; display: flex; align-items: center; gap: 2px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; box-shadow: 0 8px 25px #00000016; font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; }
+.cmdline > span:first-child { color: var(--accent); }
+.cmdline input { flex: 1; min-width: 20px; border: 0; outline: none; background: transparent; color: var(--ink); font-size: 12px; padding: 3px; }
+.cmdline-hint { font-size: 9px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toc-item { display: flex; align-items: baseline; gap: 10px; text-align: left; width: 100%; padding: 11px 8px; border: 0; background: transparent; border-radius: 4px; font-size: 12px; }
 .toc-item small { color: var(--muted); font-size: 9px; font-family: ui-monospace, monospace; }
 .toc-item:hover, .toc-item[aria-current='true'] { background: var(--soft); }

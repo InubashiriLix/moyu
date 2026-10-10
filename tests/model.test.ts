@@ -50,17 +50,26 @@ describe('vim reading keys', () => {
     expect(keys.action(event('j'), true)).toBeNull();
     expect(keys.action(event('s', { isComposing: true }), false)).toBeNull();
     expect(keys.action(event('k', { metaKey: true }), false)).toBeNull();
-    expect(keys.action(event('Escape'), true)).toBe('escape');
+    expect(keys.action(event('Escape'), true)).toEqual({ action: 'escape', count: 1 });
   });
   it('supports gg but resets the chord after other keys or a timeout', () => {
     const keys = new VimKeys();
     expect(keys.action(event('g'), false, 1000)).toBeNull();
-    expect(keys.action(event('g'), false, 1100)).toBe('start');
+    expect(keys.action(event('g'), false, 1100)).toEqual({ action: 'start', count: 1 });
     keys.action(event('g'), false, 2000);
     keys.action(event('j'), false, 2100);
     expect(keys.action(event('g'), false, 2200)).toBeNull();
     expect(keys.action(event('g'), false, 3000)).toBeNull();
-    expect(keys.action(event('d', { ctrlKey: true }), false)).toBe('halfDown');
-    expect(keys.action(event('N'), false)).toBe('previous');
+    expect(keys.action(event('d', { ctrlKey: true }), false)).toEqual({ action: 'halfDown', count: 1 });
+    expect(keys.action(event('N'), false)).toEqual({ action: 'previous', count: 1 });
+  });
+  it('carries Vim count prefixes and the command key', () => {
+    const keys = new VimKeys();
+    expect(keys.action(event('5'), false)).toBeNull();
+    expect(keys.action(event('j'), false)).toEqual({ action: 'down', count: 5 });
+    expect(keys.action(event('1'), false)).toBeNull();
+    expect(keys.action(event('0'), false)).toBeNull();
+    expect(keys.action(event('k'), false)).toEqual({ action: 'up', count: 10 });
+    expect(keys.action(event(':'), false)).toEqual({ action: 'command', count: 1 });
   });
 });

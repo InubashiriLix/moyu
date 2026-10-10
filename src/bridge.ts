@@ -10,7 +10,8 @@ let previewSaved: SavedState;
 function previewState(): SavedState {
   if (previewSaved) return previewSaved;
   try { const data = localStorage.getItem(previewKey); if (data) previewSaved = JSON.parse(data); } catch { /* A blocked storage area is allowed in preview. */ }
-  previewSaved ??= { preferences: { ...defaults }, recents: [], progress: {}, lastBook: null, geometry: { width: 360, height: 480, x: null, y: null } };
+  previewSaved ??= { preferences: { ...defaults }, recents: [], progress: {}, marks: {}, lastBook: null, geometry: { width: 360, height: 480, x: null, y: null } };
+  previewSaved.marks ??= {};
   return previewSaved;
 }
 function persistPreview() { localStorage.setItem(previewKey, JSON.stringify(previewState())); }
@@ -96,6 +97,14 @@ export async function savePreferences(preferences: Preferences): Promise<Prefere
 export async function saveProgress(id: string, position: Position) {
   if (native) await invoke('save_progress', { id, position });
   else { previewState().progress[id] = position; persistPreview(); }
+}
+export async function saveMarks(id: string, marks: Record<string, Position>) {
+  if (native) await invoke('save_marks', { id, marks });
+  else {
+    const state = previewState();
+    if (Object.keys(marks).length) state.marks[id] = marks; else delete state.marks[id];
+    persistPreview();
+  }
 }
 export async function hideWindow() {
   if (!native) throw new Error('浏览器预览不控制系统窗口，请使用桌面应用。');

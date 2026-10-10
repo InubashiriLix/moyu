@@ -190,6 +190,18 @@ export class Reader {
   }
 
   chapter(index: number) { this.go({ chapter: index, offset: 0 }); }
+  /** Jump to a percentage of the whole book's text. */
+  percent(value: number) {
+    if (!this.book) return;
+    const total = this.book.chapters.reduce((sum, chapter) => sum + chapter.text.length, 0);
+    let target = Math.max(0, Math.min(100, value)) / 100 * total;
+    for (let index = 0; index < this.book.chapters.length; index++) {
+      const length = this.book.chapters[index].text.length;
+      if (target <= length) { this.go({ chapter: index, offset: Math.floor(target) }); return; }
+      target -= length;
+    }
+    this.end();
+  }
   refresh() { this.reflow(this.anchor); }
   scroll(pixels: number) { this.viewport.scrollBy({ top: pixels, behavior: 'instant' }); }
   start() { this.go({ chapter: 0, offset: 0 }); }

@@ -126,3 +126,29 @@ test('persists progress, handles tiny window, and treats book HTML as literal te
   await expect(page.getByRole('button', { name: '关闭面板' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(180);
 });
+
+test('drives the reader from the ex command line and panel keyboard navigation', async ({ page }) => {
+  await sample(page);
+  const run = async (command: string) => {
+    await page.keyboard.press(':');
+    await expect(page.locator('.cmdline')).toBeVisible();
+    await page.locator('.cmdline input').fill(command);
+    await page.locator('.cmdline input').press('Enter');
+    await expect(page.locator('.cmdline')).toBeHidden();
+  };
+  await run('font increase');
+  expect(await page.locator('.reader').evaluate(el => getComputedStyle(el).fontSize)).toBe('17px');
+  await run('index');
+  await expect(page.locator('.panel')).toBeVisible();
+  await page.keyboard.press('j'); await page.keyboard.press('j');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.chapter-label')).toContainText('第3章');
+  await run('set theme=dark');
+  await expect(page.locator('.window')).toHaveAttribute('data-theme', 'dark');
+  await run('42');
+  await expect(page.locator('.chapter-label')).not.toContainText('第1章');
+  await run('q');
+  await expect(page.locator('.toast')).toBeVisible();
+  await expect(page.locator('.window')).toBeVisible();
+});
+

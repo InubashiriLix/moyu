@@ -4,6 +4,7 @@ mod state;
 use books::Book;
 use serde::Serialize;
 use state::{Position, Preferences, Recent, SavedState, Store};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -72,6 +73,7 @@ async fn open_book(
     saved.recents.truncate(20);
     let recent_ids: Vec<String> = saved.recents.iter().map(|r| r.id.clone()).collect();
     saved.progress.retain(|id, _| recent_ids.contains(id));
+    saved.marks.retain(|id, _| recent_ids.contains(id));
     store.persist(&saved)?;
     Ok(book)
 }
@@ -80,6 +82,21 @@ async fn open_book(
 fn save_progress(store: tauri::State<Store>, id: String, position: Position) -> Result<(), String> {
     let mut saved = store.saved.lock().map_err(|e| e.to_string())?;
     saved.progress.insert(id, position);
+    store.persist(&saved)
+}
+
+#[tauri::command]
+fn save_marks(
+    store: tauri::State<Store>,
+    id: String,
+    marks: HashMap<String, Position>,
+) -> Result<(), String> {
+    let mut saved = store.saved.lock().map_err(|e| e.to_string())?;
+    if marks.is_empty() {
+        saved.marks.remove(&id);
+    } else {
+        saved.marks.insert(id, marks);
+    }
     store.persist(&saved)
 }
 
@@ -285,6 +302,7 @@ pub fn run() {
             bootstrap,
             open_book,
             save_progress,
+            save_marks,
             save_preferences,
             hide_window,
             quit

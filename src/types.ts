@@ -10,6 +10,7 @@ export interface Preferences {
 export interface Recent { id: string; path: string; title: string; encoding: string; openedAt: number }
 export interface SavedState {
   preferences: Preferences; recents: Recent[]; progress: Record<string, Position>;
+  marks: Record<string, Record<string, Position>>;
   lastBook: string | null; geometry: { width: number; height: number; x: number | null; y: number | null };
 }
 export interface Bootstrap { saved: SavedState; platform: string; wayland: boolean; shortcutError: string | null; warning: string | null; openPath: string | null }

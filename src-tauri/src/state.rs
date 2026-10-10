@@ -112,6 +112,7 @@ pub struct SavedState {
     pub preferences: Preferences,
     pub recents: Vec<Recent>,
     pub progress: HashMap<String, Position>,
+    pub marks: HashMap<String, HashMap<String, Position>>,
     pub last_book: Option<String>,
     pub geometry: Geometry,
 }
