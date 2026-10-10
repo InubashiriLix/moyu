@@ -145,6 +145,12 @@ test('drives the reader from the ex command line and panel keyboard navigation',
   await expect(page.locator('.chapter-label')).toContainText('第3章');
   await run('set theme=dark');
   await expect(page.locator('.window')).toHaveAttribute('data-theme', 'dark');
+  await page.keyboard.press('m'); await page.keyboard.press('b');
+  await run('marks');
+  await expect(page.locator('.panel [data-mark="b"]')).toBeVisible();
+  await page.keyboard.press('d');
+  await expect(page.locator('.panel-list')).toContainText('还没有书签');
+  await page.keyboard.press('Escape');
   await run('42');
   await expect(page.locator('.chapter-label')).not.toContainText('第1章');
   await run('q');

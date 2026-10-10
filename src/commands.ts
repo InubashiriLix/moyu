@@ -4,6 +4,7 @@ export type PanelName = 'toc' | 'settings' | 'library' | 'help' | 'marks' | 'sea
 
 export type Command =
   | { type: 'panel'; panel: PanelName; query?: string }
+  | { type: 'delmark'; letters: string[]; all: boolean }
   | { type: 'quit'; force: boolean }
   | { type: 'font'; mode: 'increase' | 'decrease' | 'set'; value: number }
   | { type: 'set'; values: Partial<Preferences>; invalid: string[] }
@@ -136,6 +137,10 @@ export function parseCommand(raw: string): Command | null {
       return { type: 'panel', panel: 'library' };
     case 'marks':
       return { type: 'panel', panel: 'marks' };
+    case 'delmark': case 'delmarks': case 'delm': {
+      const letters = Array.from(new Set(rest.toLowerCase().split('').filter(char => /[a-z]/.test(char))));
+      return { type: 'delmark', letters, all: letters.length === 0 };
+    }
     case 'hide':
       return { type: 'hide' };
     case 'reset':

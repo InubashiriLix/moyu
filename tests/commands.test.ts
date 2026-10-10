@@ -32,6 +32,13 @@ describe('command parsing', () => {
     expect(parseCommand('set nope=1')).toEqual({ type: 'error', message: '无法识别：nope=1' });
   });
 
+  it('parses bookmark deletion', () => {
+    expect(parseCommand('delmark a')).toEqual({ type: 'delmark', letters: ['a'], all: false });
+    expect(parseCommand('delm a b')).toEqual({ type: 'delmark', letters: ['a', 'b'], all: false });
+    expect(parseCommand('delmarks aXa')).toEqual({ type: 'delmark', letters: ['a', 'x'], all: false });
+    expect(parseCommand('delmarks')).toEqual({ type: 'delmark', letters: [], all: true });
+  });
+
   it('parses jumps, theme, search and unknown input', () => {
     expect(parseCommand('chapter 3')).toEqual({ type: 'chapter', index: 2 });
     expect(parseCommand('42')).toEqual({ type: 'percent', value: 42 });

@@ -66,7 +66,7 @@ let panelLastG = 0;
 let markPending: 'set' | 'jump' | null = null;
 let historyIndex = 0;
 const commandHistory: string[] = [];
-const commandNames = ['index', 'toc', 'set ', 'q', 'qa!', 'quit', 'wq', 'x', 'font increase', 'font decrease', 'help', 'open', 'library', 'marks', 'theme dark', 'theme light', 'chapter ', 'search ', 'hide', 'reset'];
+const commandNames = ['index', 'toc', 'set ', 'q', 'qa!', 'quit', 'wq', 'x', 'font increase', 'font decrease', 'help', 'open', 'library', 'marks', 'delmark ', 'theme dark', 'theme light', 'chapter ', 'search ', 'hide', 'reset'];
 const worker = new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' });
 
 const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
@@ -166,7 +166,7 @@ function renderPanel() {
       panelElement.innerHTML = `${panelHeader('书签')}<div class="panel-body toc-list"><div class="panel-list">${marksItems()}</div></div>`;
       break;
     case 'help':
-      panelElement.innerHTML = `${panelHeader('键位帮助')}<div class="panel-body"><p class="note">正文区域支持 Vim 常用键位；输入框中正常输入。</p><dl class="key-list">${[['j / k', '向下 / 向上滚动'], ['5j / 3k', '数字前缀：重复移动'], ['Ctrl+d / u', '向下 / 向上半页'], ['Ctrl+f / b', '向下 / 向上一页'], ['gg / G', '书首 / 书尾'], ['50G', '跳到全书 50%'], ['/', '搜索整本书'], ['n / N', '下一个 / 上一个结果'], ['o / s / t', '打开书 / 设置 / 目录'], ['m{a-z}', '记录书签'], ['’{a-z}', '跳到书签'], [':', '命令行'], ['Esc', '关闭当前面板'], ['?', '显示帮助']].map(([key, title]) => `<div><dt><kbd>${key}</kbd></dt><dd>${title}</dd></div>`).join('')}</dl><p class="note">命令行命令：<code>:index</code> 目录、<code>:set</code> 设置、<code>:font increase|decrease</code> 字号、<code>:marks</code> 书签、<code>:q</code> 关面板、<code>:qa!</code> 退出。面板内 <kbd>j</kbd>/<kbd>k</kbd> 选择、<kbd>Enter</kbd> 确认、设置页 <kbd>h</kbd>/<kbd>l</kbd> 调节。</p><p class="note">${data.wayland ? '全局隐藏 / 恢复由窗口管理器绑定 moyu --toggle。' : `全局隐藏 / 恢复：${escape(prefs.shortcut)}`}</p><p class="note">拖动窗口顶部可移动，拖动边缘可缩放。关闭窗口会隐藏，设置中可退出。</p></div>`;
+      panelElement.innerHTML = `${panelHeader('键位帮助')}<div class="panel-body"><p class="note">正文区域支持 Vim 常用键位；输入框中正常输入。</p><dl class="key-list">${[['j / k', '向下 / 向上滚动'], ['5j / 3k', '数字前缀：重复移动'], ['Ctrl+d / u', '向下 / 向上半页'], ['Ctrl+f / b', '向下 / 向上一页'], ['gg / G', '书首 / 书尾'], ['50G', '跳到全书 50%'], ['/', '搜索整本书'], ['n / N', '下一个 / 上一个结果'], ['o / s / t', '打开书 / 设置 / 目录'], ['m{a-z}', '记录书签'], ['’{a-z}', '跳到书签'], [':', '命令行'], ['Esc', '关闭当前面板'], ['?', '显示帮助']].map(([key, title]) => `<div><dt><kbd>${key}</kbd></dt><dd>${title}</dd></div>`).join('')}</dl><p class="note">命令行命令：<code>:index</code> 目录、<code>:set</code> 设置、<code>:font increase|decrease</code> 字号、<code>:marks</code> 书签、<code>:delmark a</code> 删书签、<code>:q</code> 关面板、<code>:qa!</code> 退出。面板内 <kbd>j</kbd>/<kbd>k</kbd> 选择、<kbd>Enter</kbd> 确认、书签页 <kbd>d</kbd> 删除、设置页 <kbd>h</kbd>/<kbd>l</kbd> 调节。</p><p class="note">${data.wayland ? '全局隐藏 / 恢复由窗口管理器绑定 moyu --toggle。' : `全局隐藏 / 恢复：${escape(prefs.shortcut)}`}</p><p class="note">拖动窗口顶部可移动，拖动边缘可缩放。关闭窗口会隐藏，设置中可退出。</p></div>`;
       break;
     case 'search': {
       panelElement.innerHTML = `<form class="search-form"><span aria-hidden="true">/</span><input type="search" name="query" value="${escape(query)}" placeholder="搜索整本书" aria-label="搜索整本书" autocomplete="off"><span class="search-count"></span><button type="button" class="icon-button" data-action="previous" title="上一个结果" aria-label="上一个结果">↑</button><button type="button" class="icon-button" data-action="next" title="下一个结果" aria-label="下一个结果">↓</button><button type="button" class="icon-button" data-action="close" aria-label="关闭搜索">×</button></form>`;
@@ -219,6 +219,16 @@ function activateSetting(item: HTMLElement) {
   if (item instanceof HTMLInputElement && item.type === 'checkbox') { item.checked = !item.checked; item.dispatchEvent(new Event('change', { bubbles: true })); return; }
   item.click();
 }
+function deleteMark(letter: string | undefined) {
+  if (!letter || !book) return;
+  const marks = bookMarks();
+  if (!(letter in marks)) return;
+  delete marks[letter];
+  void bridge.saveMarks(book.id, marks).catch(fail);
+  panelCursor = Math.max(0, panelCursor - 1);
+  renderPanel();
+  toast(`已删除书签 ${letter}。`);
+}
 function panelKey(event: KeyboardEvent, now = Date.now()): boolean {
   if (!panel || panel === 'search') return false;
   const target = event.target as HTMLElement;
@@ -240,6 +250,7 @@ function panelKey(event: KeyboardEvent, now = Date.now()): boolean {
     return true;
   }
   panelLastG = 0;
+  if (panel === 'marks' && key === 'd') { deleteMark(items[panelCursor]?.dataset.mark); return true; }
   if (panel !== 'settings' && key === 'Enter') { items[panelCursor]?.click(); return true; }
   if (panel === 'settings') {
     const item = items[panelCursor];
@@ -320,6 +331,17 @@ async function runCommand(line: string) {
       worker.postMessage({ query, version: searchVersion });
       openPanel('search');
       break;
+    case 'delmark': {
+      if (!book) break;
+      const marks = bookMarks();
+      const targets = command.all ? Object.keys(marks) : command.letters;
+      let removed = 0;
+      for (const letter of targets) if (letter in marks) { delete marks[letter]; removed++; }
+      await bridge.saveMarks(book.id, marks);
+      if (panel === 'marks') renderPanel();
+      toast(command.all ? '已清空本书书签。' : removed ? `已删除书签 ${command.letters.join(' ')}。` : '没有可删除的书签。');
+      break;
+    }
     case 'open': await action('open'); break;
     case 'hide': await action('hide'); break;
     case 'reset': await action('reset'); break;

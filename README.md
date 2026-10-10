@@ -36,7 +36,8 @@
 | `:set fontsize=20 theme=dark` | 直接修改设置（`fontsize`/`lineheight`/`contrast`/`bgopacity`/`textopacity`/`theme`/`ontop`/`hidebar`/`fontfamily`） |
 | `:font increase` / `:font decrease` | 字号 ±1 |
 | `:font 20` / `:font +2` / `:font -2` | 字号赋值 / 增量 |
-| `:marks` | 书签列表 |
+| `:marks` | 书签列表（面板内按 `d` 删除） |
+| `:delmark a` / `:delmarks` | 删除指定书签；不带字母则清空本书书签 |
 | `:chapter 3` | 跳到第 3 章 |
 | `:42` | 跳到全书 42% |
 | `:search 关键词` | 搜索并预填 |
