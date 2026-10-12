@@ -158,3 +158,50 @@ test('drives the reader from the ex command line and panel keyboard navigation',
   await expect(page.locator('.window')).toBeVisible();
 });
 
+// Regression: the shipped AppImage embedded a frontend without the ex command line, so a real
+// terminal chord and keyboard-only entry must be exercised here (not just `fill` on the input).
+test('opens the ex command line with Shift+;, types via keyboard, closes with Escape, and runs a command', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(String(error)));
+  await sample(page);
+
+  const reader = page.locator('.reader');
+  const input = page.locator('.cmdline input');
+  const scrollBefore = await scrollTop(page);
+  const chapterBefore = await page.locator('.chapter-label').textContent();
+
+  // Real keyboard chord: Shift+Semicolon produces ':' and opens the command line.
+  await page.keyboard.press('Shift+Semicolon');
+  await expect(page.locator('.cmdline')).toBeVisible();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
+
+  // Keyboard typing (not `fill`) must land in the input without firing reader shortcuts,
+  // even though the string contains keys like t / m that are Vim bindings in the reader.
+  await page.keyboard.type('theme dark');
+  await expect(input).toHaveValue('theme dark');
+  await expect(page.locator('.window')).not.toHaveAttribute('data-theme', 'dark');
+  expect(await scrollTop(page)).toBe(scrollBefore);
+  expect(await page.locator('.chapter-label').textContent()).toBe(chapterBefore);
+
+  // Escape discards the line, closes it, and restores focus to the reader viewport.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cmdline')).toBeHidden();
+  await expect(input).toHaveValue('');
+  await expect(reader).toBeFocused();
+  await expect(page.locator('.window')).not.toHaveAttribute('data-theme', 'dark');
+
+  // Keyboard-only entry drives a real command end to end.
+  const sizeBefore = await reader.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  await page.keyboard.press('Shift+Semicolon');
+  await expect(input).toBeFocused();
+  await page.keyboard.type('font increase');
+  await expect(input).toHaveValue('font increase');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cmdline')).toBeHidden();
+  await expect.poll(() => reader.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBe(sizeBefore + 1);
+  await expect(reader).toBeFocused();
+
+  expect(errors).toEqual([]);
+});
+

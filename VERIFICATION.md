@@ -1,5 +1,19 @@
 # 验证记录
 
+## 2026-10-12：Arch Linux x86_64 AppImage 命令行恢复
+
+环境：Arch Linux、niri / Wayland、Node.js 26.10.0、Rust 1.98.1。
+
+- 根因：旧安装虽然命名为 `Moyu_0.2.0_amd64.AppImage`，但从包内 ELF 解压出的前端没有 `.cmdline`、冒号键映射或字号命令；当前源码已包含这些功能。
+- 从当前源码 `84a9d7c` 重新构建。新程序内嵌前端与本次 `dist` JavaScript 完全一致，包含命令行、字号命令和书签删除功能。
+- TypeScript / 前端生产构建通过；11 项前端单元测试、9 项 Rust 单元测试通过。
+- Chromium（headed）及 WebKit 各 7 项交互测试通过，新增用真实 `Shift+Semicolon` 打开命令行、检查焦点、键盘输入、Esc 取消及执行字号命令的回归测试。
+- Playwright WebKit 的 Ubuntu 兼容库仅解压到临时目录用于测试；未替换 Arch 系统库。测试后恢复临时修改的浏览器启动脚本。
+- 在 niri 原生 release 程序中已观察到冒号命令行显示；重新打包的 x86_64 AppImage 已替换旧安装。未完成全部原生验收场景。
+- 本地安装验证包（0.2.0）SHA-256：`98dde0899a979f8b268610a42c89f866cab3a1d1090e4e59c2252c2c00bafe9d`。正式热修复发布版本为 0.2.1，项目版本号与 npm / Cargo 锁文件同步。
+
+## 2026-10-09：macOS 初始验证
+
 2026-10-09，macOS 27.0.1 / Apple Silicon，Node.js 24.21.0，Rust 1.98.1。
 
 | 检查 | 结果 |
