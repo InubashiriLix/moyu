@@ -21,6 +21,10 @@ pub struct Preferences {
     pub shortcut: String,
     pub hide_toolbar: bool,
     pub font_family: String,
+    pub voice_engine_dir: String,
+    pub voice_models_dir: String,
+    pub voice_speaker: String,
+    pub voice_automatic: bool,
 }
 
 impl Default for Preferences {
@@ -36,6 +40,10 @@ impl Default for Preferences {
             shortcut: "Ctrl+Alt+M".into(),
             hide_toolbar: true,
             font_family: "jetbrains".into(),
+            voice_engine_dir: String::new(),
+            voice_models_dir: String::new(),
+            voice_speaker: "Uncle_Fu".into(),
+            voice_automatic: true,
         }
     }
 }
@@ -65,6 +73,9 @@ impl Preferences {
         }
         if !["jetbrains", "systemMono", "serif"].contains(&self.font_family.as_str()) {
             self.font_family = defaults.font_family;
+        }
+        if !["Uncle_Fu", "Serena"].contains(&self.voice_speaker.as_str()) {
+            self.voice_speaker = "Uncle_Fu".into();
         }
     }
 }

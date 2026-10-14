@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { parseCommand } from '../src/commands';
 
 describe('command parsing', () => {
+  it('maps speech commands without accepting accidental arguments', () => {
+    for (const action of ['read', 'pause', 'resume', 'stop', 'follow']) {
+      expect(parseCommand(`:${action}`)).toEqual({ type: 'voice', action });
+      expect(parseCommand(`${action} invalid`)?.type).toBe('error');
+    }
+  });
   it('maps navigation and quit commands', () => {
     expect(parseCommand('index')).toEqual({ type: 'panel', panel: 'toc' });
     expect(parseCommand('toc')).toEqual({ type: 'panel', panel: 'toc' });

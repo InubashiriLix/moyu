@@ -1,0 +1,12 @@
+/build*/
+/.tools/
+/.toolchain/
+/.venv*/
+/models/
+/artifacts/
+/vendor/qwen3/
+/vendor/miniaudio.h
+__pycache__/
+*.pyc
+*.wav
+*.partial

@@ -23,6 +23,9 @@
 | 记录 / 跳转书签 | `m{a-z}` / `'{a-z}` |
 | 命令行 | `:` |
 | 帮助 / 关闭面板 | `?` / `Esc` |
+| 从屏幕顶部所在段落的段首朗读 | `gr` |
+| 暂停 / 继续 / 停止朗读 | `gp` / `gs` |
+| 回到当前朗读位置并恢复跟随 | `gc` |
 | macOS / X11 全局隐藏与恢复 | `Ctrl+Alt+M`（可修改） |
 
 ### 命令行（`:`）
@@ -45,6 +48,7 @@
 | `:theme dark` / `:theme light` | 切换主题 |
 | `:hide` | 隐藏窗口 |
 | `:reset` | 恢复默认外观 |
+| `:read` / `:pause` / `:resume` / `:stop` / `:follow` | 开始 / 暂停 / 继续 / 停止 / 回到朗读处 |
 | `:q` | 关闭当前面板（不退出应用） |
 | `:qa!` / `:wq` | 保存进度与偏好并退出应用 |
 
@@ -53,6 +57,24 @@
 搜索是字面量匹配，忽略大小写，最多显示 10,000 个结果。输入框中不会触发阅读键位。拖动顶部窄栏移动，拖动边缘缩放；最小尺寸 180 × 120。
 
 背景透明度和文字透明度独立调节。对比度改变文字与背景的明暗差；设定在纯色底色上计算，透出桌面后的实际效果取决于桌面内容。设置面板保持不透明；“恢复默认外观”保留全局快捷键和置顶选择。
+
+## 本地朗读
+
+本版语音支持 Linux / NVIDIA CUDA，使用独立的 Novel Voice 原生引擎。点击顶部 ♪ 或“设置 → 朗读设置与控制”；浏览器预览及其他平台明确显示朗读不可用，普通阅读不受影响。
+
+`gr` 从屏幕顶部所在完整原文段落的段首开始，读到当前章末；正文右键菜单可以从指定段落开始。长段落即使拆成多个显示块，也不会从显示块中间起读。`gp` 原位暂停 / 继续，`gs` 清空待播放音频；再次 `gr` 按当前屏幕位置重新开始。Esc 关闭菜单和面板。
+
+淡色背景与侧边标记显示当前播放段落。画面默认跟随；手动滚动、搜索或跳转后继续朗读但不拉回画面，按 `gc` 或点击“回到朗读处”恢复跟随。定位依据音频设备回调实际消费的 PCM，排除暂停、预缓冲及欠载静音；设备自身的输出延迟不包含在定位中。隐藏窗口后继续，切换书籍或退出应用时停止，启动应用不会自动朗读。
+
+默认男声 Uncle Fu，可选女声 Serena，自动语气开启。声音和语气在下一次开始时生效。模型按需加载，空闲或暂停 60 秒卸载；缓存复用及长暂停恢复由引擎负责。朗读期间底部控制栏保持可见，停止后恢复原本的安静阅读界面。
+
+在“引擎位置”中指定包含 `libnovel_voice.so` 与 `nv-worker` 的引擎目录，以及包含 F16 主模型和 tokenizer 的模型目录。也可设置 `MOYU_NV_ENGINE_DIR` / `MOYU_NV_MODELS_DIR`。开发构建会自动发现相邻的 `../novel-voice/build/bin` 和 `../novel-voice/models/gguf`；发布构建默认查找 `${XDG_DATA_HOME:-~/.local/share}/novel-voice/runtime` 与 `models/gguf`。引擎需要新版播放位置接口（ABI 1）；旧版会提示重新构建。Moyu 安装包不自动捆绑模型或 CUDA SDK；使用引擎现有构建目录时应保留其 GGML/CUDA 动态库依赖，不要只复制两个文件。
+
+```sh
+# 当前工作区
+cd /home/inubashiri/Projects/moyu
+npm run desktop
+```
 
 ## niri / Wayland
 
@@ -133,8 +155,24 @@ cargo test --locked --manifest-path src-tauri/Cargo.toml
 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 npx playwright install chromium webkit
 npm run test:e2e
+# 可选：真实模型 / 音频设备验收，不属于替身测试
+cargo test --locked --manifest-path src-tauri/Cargo.toml voice::tests::real_engine_ffi_playback_and_actor -- --ignored --nocapture
 ```
 
 CI 在 macOS 与 Ubuntu 上进行测试并生成平台安装包，但它不能代替真实合成器验收。
 
-在 niri 上需手动完成：用 `niri validate` 检查配置；用 `niri msg windows` 确认 app-id 和浮动状态；打开 TXT / EPUB；调整文字与背景透明度；移动、缩放及修改字号；切换焦点后用快捷键隐藏 / 恢复；确认二次启动仍只有一个阅读窗口；退出后确认进度恢复；检查全屏 / 多工作区行为。当前开发机器是 macOS，不能把浏览器测试视为 niri 实测。
+在 niri 上需手动完成：用 `niri validate` 检查配置；用 `niri msg windows` 确认 app-id 和浮动状态；打开 TXT / EPUB；调整文字与背景透明度；移动、缩放及修改字号；切换焦点后用快捷键隐藏 / 恢复；确认二次启动仍只有一个阅读窗口；退出后确认进度恢复；检查全屏 / 多工作区行为。浏览器回归和原生朗读接口测试不能代替 niri 桌面实际交互验收。
+
+## 完整离线朗读版 v0.3.0
+
+完整包包含 GGUF F16 模型、原生 C++/CUDA 引擎、CUDA 运行库和中文字体，运行不需要 Python、PyTorch、CUDA SDK 或模型下载。当前构建面向 Arch Linux x86_64，包含 `sm_89`（RTX 4060，包括 Laptop）及 `sm_120a`（RTX 5060）内核，需要兼容 CUDA 13 的 NVIDIA 驱动（580 系列或更新）。5060 已在本机验证，4060 Laptop 已由用户验证 GPU 生成及朗读播放。
+
+运行 AppImage 打开小说，按 `gr` 开始、`gp` 暂停/继续、`gs` 停止、`gc` 回到朗读处；也可右键段落开始。`--voice-smoke` 执行包内 GPU 生成测试；没有 FUSE 时用 `--appimage-extract-and-run`。GPU 不兼容会在加载模型前明确报错。
+
+已有旧完整包可用 `Moyu_voice_engine_sm89_sm120a_update.tar.gz`，先用旧 AppImage 的 `--appimage-extract` 提取，再按更新包 README 运行 `update-engine.sh`，模型及 CUDA 库无需重传。更新后用提取目录的 `AppRun` 启动，原 AppImage 不变。新完整包的 GitHub 分卷与校验文件放同一目录，运行 `bash assemble-full.sh` 还原。
+
+引擎源码位于 `voice-engine/`，构建和模型准备方法见该目录 README。打包使用 `npm run package:full -- --engine /path/to/voice-engine`，需要已构建引擎及已准备模型、patchelf、noto-fonts-cjk、CUDA 和 Tauri 构建环境。Python 仅用于模型准备和开发打包工具。完整源码归档还包含固定版本后端源码及许可证。
+
+声音可直接在 `s` 设置面板选择，顶部栏隐藏时也能访问。正文中 `gv` 打开并定位声音设置，`gf` 选择女声 Serena，`gm` 选择男声 Uncle Fu；切换保存后在下次 `gr` 生效。设置内可用 j/k 选择、h/l 调节。
+
+已下载完整包的用户可使用 `Moyu_reader_settings_update.tar.gz` 更新阅读界面，复用原有模型和 GPU 引擎。按包内 README 提取并更新，再从 AppRun 启动；更新前请用 `:qa!` 彻底退出后台旧进程。

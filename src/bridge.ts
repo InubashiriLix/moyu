@@ -1,9 +1,18 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
-import { defaults, type Book, type Bootstrap, type Position, type Preferences, type SavedState } from './types';
+import { defaults, type Book, type Bootstrap, type Position, type Preferences, type SavedState, type VoiceStatus } from './types';
 
 export const native = isTauri();
+export async function voiceStart(requestId: number, bookId: string, position: Position): Promise<VoiceStatus> {
+  if (!native) throw new Error('浏览器预览不支持朗读，请使用桌面应用。');
+  return invoke('voice_start', { request: { requestId, bookId, position } });
+}
+export async function voiceControl(requestId: number, action: string): Promise<VoiceStatus> {
+  if (!native) throw new Error('浏览器预览不支持朗读，请使用桌面应用。');
+  return invoke('voice_control', { requestId, action });
+}
+export async function voiceStatus(): Promise<VoiceStatus | null> { return native ? invoke('voice_status') : null; }
 const previewKey = 'moyu-browser-preview-v1';
 const previewBooks = new Map<string, Book>();
 let previewSaved: SavedState;

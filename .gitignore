@@ -6,3 +6,14 @@ test-results/
 playwright-report/
 .DS_Store
 *.log
+packaging/staged/
+releases/
+.package-tools/
+
+__pycache__/
+voice-engine/vendor/
+voice-engine/build*/
+voice-engine/models/
+voice-engine/artifacts/
+voice-engine/.venv*/
+voice-engine/.toolchain/

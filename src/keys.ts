@@ -1,4 +1,4 @@
-export type Action = 'down' | 'up' | 'halfDown' | 'halfUp' | 'pageDown' | 'pageUp' | 'start' | 'end' | 'search' | 'next' | 'previous' | 'open' | 'settings' | 'toc' | 'help' | 'escape' | 'command';
+export type Action = 'down' | 'up' | 'halfDown' | 'halfUp' | 'pageDown' | 'pageUp' | 'start' | 'end' | 'search' | 'next' | 'previous' | 'open' | 'settings' | 'toc' | 'help' | 'escape' | 'command' | 'voiceRead' | 'voiceToggle' | 'voiceStop' | 'voiceFollow' | 'voiceSettings' | 'voiceFemale' | 'voiceMale';
 
 /** A resolved key press: the action plus an optional Vim-style count prefix. */
 export interface KeyAction { action: Action; count: number }
@@ -13,10 +13,12 @@ export class VimKeys {
     return count;
   }
 
+  get awaitingChord() { return Boolean(this.lastG && Date.now() - this.lastG < 600); }
+
   private reset() { this.lastG = 0; this.count = 0; }
 
   action(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'isComposing'>, editable: boolean, now = Date.now()): KeyAction | null {
-    if (event.isComposing) return null;
+    if (event.isComposing) { this.reset(); return null; }
     if (event.key === 'Escape') { this.reset(); return { action: 'escape', count: 1 }; }
     if (editable || event.metaKey || event.altKey) { this.reset(); return null; }
     if (event.ctrlKey) {
@@ -36,6 +38,11 @@ export class VimKeys {
       if (this.lastG && now - this.lastG < 600) { this.lastG = 0; return { action: 'start', count }; }
       this.lastG = now;
       return null;
+    }
+    if (this.lastG && now - this.lastG < 600) {
+      const speech = ({ r: 'voiceRead', p: 'voiceToggle', s: 'voiceStop', c: 'voiceFollow', v: 'voiceSettings', f: 'voiceFemale', m: 'voiceMale' } as Record<string, Action>)[event.key];
+      this.lastG = 0;
+      if (speech) { this.take(); return { action: speech, count: 1 }; }
     }
     this.lastG = 0;
     const action = ({ j: 'down', k: 'up', G: 'end', '/': 'search', n: 'next', N: 'previous', o: 'open', s: 'settings', t: 'toc', '?': 'help', ':': 'command' } as Record<string, Action>)[event.key];

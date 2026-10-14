@@ -6,6 +6,8 @@ export interface Preferences {
   fontSize: number; lineHeight: number; theme: 'light' | 'dark';
   alwaysOnTop: boolean; shortcut: string;
   hideToolbar: boolean; fontFamily: 'jetbrains' | 'systemMono' | 'serif';
+  voiceEngineDir: string; voiceModelsDir: string;
+  voiceSpeaker: 'Uncle_Fu' | 'Serena'; voiceAutomatic: boolean;
 }
 export interface Recent { id: string; path: string; title: string; encoding: string; openedAt: number }
 export interface SavedState {
@@ -19,4 +21,11 @@ export const defaults: Preferences = {
   backgroundOpacity: 0.86, textOpacity: 1, contrast: 0.72,
   fontSize: 16, lineHeight: 1.9, theme: 'light', alwaysOnTop: true, shortcut: 'Ctrl+Alt+M',
   hideToolbar: true, fontFamily: 'jetbrains',
+  voiceEngineDir: '', voiceModelsDir: '', voiceSpeaker: 'Uncle_Fu', voiceAutomatic: true,
 };
+
+export interface VoiceStatus {
+  requestId: number; bookId: string; chapter: number;
+  phase: 'idle' | 'loading' | 'buffering' | 'playing' | 'paused' | 'completed' | 'stopped' | 'error';
+  paragraphStart: number | null; paragraphEnd: number | null; offset: number | null; error: string | null;
+}

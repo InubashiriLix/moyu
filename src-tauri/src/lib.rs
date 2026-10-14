@@ -1,5 +1,6 @@
 mod books;
 mod state;
+mod voice;
 
 use books::Book;
 use serde::Serialize;
@@ -56,6 +57,13 @@ async fn open_book(
         tauri::async_runtime::spawn_blocking(move || books::open(&path, encoding.as_deref()))
             .await
             .map_err(|e| e.to_string())??;
+    let voice_book = book.clone();
+    let voice_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        voice_app.state::<voice::VoiceService>().set_book(voice_book)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     let store = app.state::<Store>();
     let mut saved = store.saved.lock().map_err(|e| e.to_string())?;
     saved.last_book = Some(book.id.clone());
@@ -254,6 +262,13 @@ fn remember_geometry(app: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    if std::env::args().any(|arg|arg=="--voice-check"||arg=="--voice-smoke"){
+        let context:tauri::Context<tauri::Wry>=tauri::generate_context!();
+        let check=tauri::utils::platform::resource_dir(context.package_info(),&tauri::Env::default())
+            .map_err(|e|e.to_string()).and_then(|root|voice::bundle_check(root,std::env::args().any(|arg|arg=="--voice-smoke")));
+        match check{Ok(result)=>println!("{result}"),Err(error)=>{eprintln!("{error}");std::process::exit(1);}}
+        return;
+    }
     let open_path = file_argument(
         &std::env::args().collect::<Vec<_>>(),
         &std::env::current_dir()
@@ -305,7 +320,10 @@ pub fn run() {
             save_marks,
             save_preferences,
             hide_window,
-            quit
+            quit,
+            voice::voice_start,
+            voice::voice_control,
+            voice::voice_status
         ])
         .setup(move |app| {
             // The single-instance plugin forwards a secondary --hide before setup.
@@ -317,6 +335,8 @@ pub fn run() {
             let store = Store::load(app.path().app_data_dir()?);
             let saved = store.saved.lock().unwrap().clone();
             app.manage(store);
+            voice::set_bundle(app.path().resource_dir()?);
+            app.manage(voice::VoiceService::new(app.handle().clone()));
             let window = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
@@ -394,6 +414,9 @@ pub fn run() {
         .expect("无法启动 Moyu")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                if let Some(voice) = app.try_state::<voice::VoiceService>() {
+                    voice.shutdown();
+                }
                 if app.try_state::<Store>().is_some() {
                     remember_geometry(app);
                 }

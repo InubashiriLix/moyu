@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockAt, blocksFor, findMatches, Heights } from '../src/model';
+import { blockAt, blocksFor, findMatches, Heights, paragraphAt, paragraphsFor } from '../src/model';
 import { VimKeys } from '../src/keys';
 import type { Book } from '../src/types';
 
@@ -9,6 +9,15 @@ const book: Book = { id: 'test', path: '/test', title: '测试', encoding: 'UTF-
 ] };
 
 describe('book indexing', () => {
+  it('locates source paragraphs across virtual blocks, blank lines and surrogate pairs', () => {
+    const rows = paragraphsFor(book, 0);
+    expect(rows).toHaveLength(3);
+    expect(paragraphAt(book, { chapter: 0, offset: rows[2].offset + 900 })).toEqual(rows[2]);
+    expect(paragraphAt(book, { chapter: 0, offset: rows[0].end })).toEqual(rows[1]);
+    expect(rows[1].end - rows[1].offset).toBe('hello HELLO [.*] 🌲'.length);
+    expect(paragraphAt(book, { chapter: 1, offset: 0 })?.offset).toBe(0);
+    expect(paragraphAt({ ...book, chapters: [{ id: 'x', title: '空', text: ' \n\n' }] }, { chapter: 0, offset: 0 })).toBeNull();
+  });
   it('splits long paragraphs with exact offsets and intact surrogate pairs', () => {
     const blocks = blocksFor(book);
     for (const block of blocks.filter(b => !b.heading)) {
@@ -45,6 +54,22 @@ describe('virtual heights', () => {
 
 describe('vim reading keys', () => {
   const event = (key: string, extra = {}) => ({ key, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, isComposing: false, ...extra });
+  it('resolves speech chords while preserving settings and clearing prefixes during input', () => {
+    const keys = new VimKeys();
+    for (const [key, action] of [['r', 'voiceRead'], ['p', 'voiceToggle'], ['s', 'voiceStop'], ['c', 'voiceFollow'], ['v', 'voiceSettings'], ['f', 'voiceFemale'], ['m', 'voiceMale']]) {
+      keys.action(event('g'), false, 1000);
+      expect(keys.action(event(key), false, 1100)).toEqual({ action, count: 1 });
+    }
+    expect(keys.action(event('s'), false)).toEqual({ action: 'settings', count: 1 });
+    keys.action(event('g'), false, 2000);
+    expect(keys.action(event('s'), false, 2700)).toEqual({ action: 'settings', count: 1 });
+    keys.action(event('g'), false, 3000);
+    keys.action(event('r', { isComposing: true }), false, 3100);
+    expect(keys.action(event('s'), false, 3200)).toEqual({ action: 'settings', count: 1 });
+    keys.action(event('g'), false, 4000);
+    keys.action(event('r'), true, 4100);
+    expect(keys.action(event('s'), false, 4200)).toEqual({ action: 'settings', count: 1 });
+  });
   it('keeps text entry and IME safe', () => {
     const keys = new VimKeys();
     expect(keys.action(event('j'), true)).toBeNull();

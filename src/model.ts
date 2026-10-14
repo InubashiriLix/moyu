@@ -8,6 +8,21 @@ export interface Block {
   continuation: boolean;
 }
 export interface Match extends Position { length: number }
+export interface Paragraph extends Position { end: number }
+
+/** Original source paragraphs, independent of virtual display blocks. */
+export function paragraphsFor(book: Book, chapter: number): Paragraph[] {
+  const result: Paragraph[] = [];
+  const text = book.chapters[chapter]?.text ?? '';
+  for (const match of text.matchAll(/[^\n]+/g)) {
+    if (match[0].trim()) result.push({ chapter, offset: match.index, end: match.index + match[0].length });
+  }
+  return result;
+}
+export function paragraphAt(book: Book, position: Position): Paragraph | null {
+  const rows = paragraphsFor(book, position.chapter);
+  return rows.find(row => position.offset < row.end) ?? rows.at(-1) ?? null;
+}
 
 /** Blocks use JS UTF-16 offsets, shared by DOM Range and saved positions. */
 export function blocksFor(book: Book): Block[] {
