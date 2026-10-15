@@ -50,6 +50,7 @@ pub struct DownloadStatus {
     pub source: Option<String>,
     pub error: Option<String>,
     pub path: Option<String>,
+    pub update_available: bool,
 }
 impl DownloadStatus {
     pub fn new(e: &CatalogEntry) -> Self {
@@ -61,6 +62,7 @@ impl DownloadStatus {
             source: None,
             error: None,
             path: None,
+            update_available: false,
         }
     }
 }

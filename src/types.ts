@@ -45,6 +45,7 @@ export type DownloadPhase = 'not_installed' | 'checking' | 'downloading' | 'paus
   | 'verifying' | 'installing' | 'ready' | 'error' | 'cancelled';
 /** Progress/state for a catalog entry, also delivered through the `model-progress` event. */
 export interface DownloadStatus {
+  updateAvailable?: boolean;
   id: string; phase: DownloadPhase; downloadedBytes: number; totalBytes: number;
   source: string | null; error: string | null; path: string | null;
 }

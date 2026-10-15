@@ -15,7 +15,7 @@ namespace {
 constexpr std::size_t kRate = 24000;
 constexpr std::size_t kMaxCached = 1440000;  // 60 s * 24 kHz: cache only full fits
 constexpr const char* kBackendCommit = "74422b";
-constexpr const char* kStreamingProfile = "streaming-v2-serial-decode";
+constexpr const char* kStreamingProfile = "streaming-v3-native-ffn";
 using Clock = std::chrono::steady_clock;
 double secs(const Clock::time_point& a) { return std::chrono::duration<double>(Clock::now() - a).count(); }
 // Path + size + mtime. Parent later folds the full manifest SHA into the key.

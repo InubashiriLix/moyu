@@ -39,6 +39,17 @@ test('NVIDIA users can download the model with the optional CUDA component',asyn
   await card.getByRole('button',{name:'下载',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>(window as any).__modelDownloads)).toEqual(['qwen3-tts-1.7b-customvoice-f16','cuda-linux-x86_64-abi1']);
 });
+test('CUDA revision upgrades offer an update and explain local file reuse',async({page})=>{
+  await setup(page,true);
+  const card=page.locator('[data-model-id="cuda-linux-x86_64-abi1"]');
+  await page.evaluate(()=>(window as any).__modelEmit({id:'cuda-linux-x86_64-abi1',phase:'not_installed',updateAvailable:true}));
+  await expect(card.locator('[data-model-status]')).toContainText('复用已有文件');
+  await card.getByRole('button',{name:'更新组件',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>(window as any).__modelDownloads)).toEqual(['cuda-linux-x86_64-abi1']);
+  await page.evaluate(()=>(window as any).__modelEmit({phase:'ready',updateAvailable:false}));
+  await expect(card.locator('[data-model-status]')).toHaveText('已就绪');
+  await expect(card.getByRole('button',{name:'更新组件',exact:true})).toBeHidden();
+});
 test('progress events preserve control focus while updating source and errors',async({page})=>{
   await setup(page);const mode=page.getByRole('combobox',{name:'性能模式'});await mode.focus();
   await page.evaluate(()=> (window as any).__modelEmit({phase:'downloading',downloadedBytes:40,source:'github'}));

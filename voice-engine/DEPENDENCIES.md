@@ -12,3 +12,5 @@
 - `patches/cuda-device-compatibility.patch` 在 GGML 中加入部署检查探针，使用与计算内核相同的编译目标，在模型加载前检验 CUDA 内核可用性。
 
 - `patches/backend-selection.patch` 固定 CPU/CUDA/Vulkan 设备选择，限制主后端与 CPU 回退线程数，移除宿主 `-march=native` 编译选项，并将上游 CUDA 专用调用限于 CUDA 构建。
+
+- `patches/native-ffn-matmul.patch` 让量化 FFN 权重直接参与矩阵乘法，避免 CUDA 不支持的 Q5_K→F32 整矩阵转换逐 token 回退 CPU。CUDA 的 F16 FFN 同样直接读取半精度权重，并显式使用 F32 累加；CPU/Vulkan 的浮点模型路径保持原样。

@@ -154,6 +154,17 @@ impl ModelManager {
                 status.path = Some(dest.to_string_lossy().into());
                 journal.phase = "ready".into();
             } else {
+                status.update_available = fs::read_dir(root.join("installed").join(&e.id))
+                    .is_ok_and(|dirs| {
+                        dirs.flatten().any(|dir| {
+                            dir.file_type().is_ok_and(|t| t.is_dir())
+                                && dir.file_name() != e.revision.as_str()
+                                && fs::read(dir.path().join(".installed.json"))
+                                    .ok()
+                                    .and_then(|b| serde_json::from_slice::<CatalogEntry>(&b).ok())
+                                    .is_some_and(|old| old.id == e.id && old.kind == e.kind)
+                        })
+                    });
                 status.phase = journal.phase.clone();
                 status.downloaded_bytes = journal.parts.iter().flatten().map(|p| p.received).sum();
                 if [
@@ -392,6 +403,68 @@ impl ModelManager {
         }
         job.running.store(false, Ordering::Release);
     }
+    // Revisions are immutable. Reuse only matching artifacts from a completed
+    // installation, copying and hashing each chunk rather than hard-linking it.
+    fn reusable_file(&self, e: &CatalogEntry, a: &schema::Artifact) -> Option<File> {
+        let revisions = fs::read_dir(self.0.root.join("installed").join(&e.id)).ok()?;
+        for directory in revisions.flatten() {
+            if !directory.file_type().is_ok_and(|t| t.is_dir())
+                || directory.file_name() == e.revision.as_str()
+            {
+                continue;
+            }
+            let path = directory.path();
+            let Some(old) = fs::read(path.join(".installed.json"))
+                .ok()
+                .and_then(|b| serde_json::from_slice::<CatalogEntry>(&b).ok())
+            else {
+                continue;
+            };
+            if old.id != e.id
+                || old.kind != e.kind
+                || !old
+                    .files
+                    .iter()
+                    .any(|f| f.name == a.name && f.size == a.size && f.sha256 == a.sha256)
+            {
+                continue;
+            }
+            let source = path.join(&a.name);
+            if fs::symlink_metadata(&source).is_ok_and(|m| m.is_file() && m.len() == a.size) {
+                if let Ok(file) = File::open(source) {
+                    return Some(file);
+                }
+            }
+        }
+        None
+    }
+    fn reuse_chunk(
+        &self,
+        e: &CatalogEntry,
+        job: &Job,
+        source: &mut File,
+        target: &mut File,
+        chunk: &schema::Chunk,
+    ) -> Result<bool, String> {
+        source.seek(SeekFrom::Start(chunk.offset)).map_err(error)?;
+        target.seek(SeekFrom::Start(chunk.offset)).map_err(error)?;
+        let mut left = chunk.size;
+        let mut hash = Sha256::new();
+        let mut bytes = [0u8; 65536];
+        while left > 0 {
+            self.check(e, job)?;
+            let n = source
+                .read(&mut bytes[..left.min(65536) as usize])
+                .map_err(error)?;
+            if n == 0 {
+                return Ok(false);
+            }
+            hash.update(&bytes[..n]);
+            target.write_all(&bytes[..n]).map_err(error)?;
+            left -= n as u64;
+        }
+        Ok(format!("{:x}", hash.finalize()) == chunk.sha256)
+    }
     fn fetch(&self, e: &CatalogEntry, job: &Job) -> Result<(), String> {
         self.phase(e, job, "checking", None)?;
         let payload = self.staging(e).join("payload");
@@ -433,6 +506,7 @@ impl ModelManager {
             .map_err(|_| "无法初始化下载连接")?;
         for (fi, a) in e.files.iter().enumerate() {
             self.check(e, job)?;
+            let mut reusable = self.reusable_file(e, a);
             let path = payload.join(&a.name);
             if fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
                 return Err("暂存文件不能是符号链接".into());
@@ -449,6 +523,22 @@ impl ModelManager {
                 let saved = job.journal.lock().unwrap().parts[fi][ci].clone();
                 if saved.verified && hash_range(&mut file, c.offset, c.size)? == c.sha256 {
                     continue;
+                }
+                if let Some(source) = reusable.as_mut() {
+                    job.journal.lock().unwrap().parts[fi][ci] = Part::default();
+                    self.save(e, job)?;
+                    if self.reuse_chunk(e, job, source, &mut file, c)? {
+                        file.sync_data().map_err(error)?;
+                        job.journal.lock().unwrap().parts[fi][ci] = Part {
+                            received: c.size,
+                            verified: true,
+                            source: Some("本地已校验文件".into()),
+                            etag: None,
+                        };
+                        self.save(e, job)?;
+                        self.progress(e, job, "本地已校验文件");
+                        continue;
+                    }
                 }
                 {
                     let mut j = job.journal.lock().unwrap();
@@ -599,6 +689,7 @@ impl ModelManager {
             let mut state = job.state.lock().unwrap();
             state.downloaded_bytes = state.total_bytes;
             state.path = Some(dest.to_string_lossy().into());
+            state.update_available = false;
         }
         self.phase(e, job, "ready", None)
     }

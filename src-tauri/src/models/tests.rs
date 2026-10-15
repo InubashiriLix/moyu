@@ -139,6 +139,103 @@ fn wait_ready(m: &ModelManager) {
     }
 }
 #[test]
+fn revision_upgrade_reuses_verified_files_and_fetches_only_changed_artifacts() {
+    let t = Temp::new();
+    let source = t.0.join("source");
+    fs::create_dir(&source).unwrap();
+    fs::write(source.join("model.gguf"), b"unchanged library").unwrap();
+    fs::write(source.join("nv-worker"), b"old worker").unwrap();
+    let mut old = entry(b"unchanged library", vec![]);
+    old.kind = "backend".into();
+    let mut worker = entry(b"old worker", vec![]).files.remove(0);
+    worker.name = "nv-worker".into();
+    old.files.push(worker);
+    let root = t.0.join("manager");
+    let m = manager(&root, old.clone());
+    m.import(&old.id, &source).unwrap();
+    let old_path = m.installed_path(&old.id).unwrap();
+    drop(m);
+    let server = Server::new(b"new worker".to_vec(), 200);
+    let mut new = old.clone();
+    new.revision = "rev2".into();
+    new.enabled = true;
+    new.files[0].chunks[0].sources = vec![Source {
+        id: "test".into(),
+        url: server.url.clone(),
+    }];
+    let mut worker = entry(
+        b"new worker",
+        vec![Source {
+            id: "test".into(),
+            url: server.url.clone(),
+        }],
+    )
+    .files
+    .remove(0);
+    worker.name = "nv-worker".into();
+    new.files[1] = worker;
+    let m = manager(&root, new.clone());
+    assert!(m.statuses()[0].update_available);
+    m.download(&new.id).unwrap();
+    wait_ready(&m);
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+    let installed = m.installed_path(&new.id).unwrap();
+    assert_eq!(
+        fs::read(installed.join("model.gguf")).unwrap(),
+        b"unchanged library"
+    );
+    assert_eq!(
+        fs::read(installed.join("nv-worker")).unwrap(),
+        b"new worker"
+    );
+    assert_eq!(fs::read(old_path.join("nv-worker")).unwrap(), b"old worker");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        assert_ne!(
+            fs::metadata(installed.join("model.gguf")).unwrap().ino(),
+            fs::metadata(old_path.join("model.gguf")).unwrap().ino()
+        );
+    }
+    assert!(!manager(&root, new).statuses()[0].update_available);
+}
+
+#[test]
+fn revision_upgrade_rejects_corrupt_local_chunks() {
+    let t = Temp::new();
+    let source = t.0.join("source");
+    fs::create_dir(&source).unwrap();
+    let bytes = b"valid model";
+    fs::write(source.join("model.gguf"), bytes).unwrap();
+    let old = entry(bytes, vec![]);
+    let root = t.0.join("manager");
+    let m = manager(&root, old.clone());
+    m.import(&old.id, &source).unwrap();
+    fs::write(
+        m.installed_path(&old.id).unwrap().join("model.gguf"),
+        b"bad model!!",
+    )
+    .unwrap();
+    drop(m);
+    let server = Server::new(bytes.to_vec(), 200);
+    let mut new = entry(
+        bytes,
+        vec![Source {
+            id: "test".into(),
+            url: server.url.clone(),
+        }],
+    );
+    new.revision = "rev2".into();
+    let m = manager(&root, new.clone());
+    m.download(&new.id).unwrap();
+    wait_ready(&m);
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+    assert_eq!(
+        fs::read(m.installed_path(&new.id).unwrap().join("model.gguf")).unwrap(),
+        bytes
+    );
+}
+#[test]
 fn imports_are_atomic_and_survive_restart() {
     let t = Temp::new();
     let source = t.0.join("source");

@@ -248,13 +248,13 @@ export class ModelsUI {
     const retry = phase === 'error' || phase === 'cancelled';
     return `<article class="model-card" data-model-id="${escape(entry.id)}" data-phase="${phase}">
       <div class="model-card-head"><strong>${escape(entry.label)}</strong>${tags.map(tag => `<span class="model-tag">${escape(tag)}</span>`).join('')}<span class="model-size">${escape(size)}</span></div>
-      <p class="model-status" data-model-status>${escape(PHASE_LABEL[phase])}</p>
+      <p class="model-status" data-model-status>${escape(phase === 'not_installed' && status?.updateAvailable ? '有更新 · 将校验并复用已有文件' : PHASE_LABEL[phase])}</p>
       <div class="model-progress" data-model-progress${ACTIVE.includes(phase) || phase === 'paused' ? '' : ' hidden'}><span class="model-progress-track"><span class="model-progress-bar" data-model-bar style="width:${this.percent(status)}%"></span></span><span class="model-progress-text" data-model-progress-text>${escape(this.progressText(status))}</span></div>
       <p class="model-source" data-model-source${status?.source ? '' : ' hidden'}>${status?.source ? `来源：${escape(status.source)}` : ''}</p>
       <p class="model-error" data-model-error${status?.error ? '' : ' hidden'}>${escape(status?.error ?? '')}</p>
       <p class="model-path" data-model-path${status?.path ? '' : ' hidden'}>${escape(status?.path ?? '')}</p>
       <div class="model-actions">
-        <button class="secondary" data-model-download${actions.download ? '' : ' hidden'}${actions.enabled ? '' : ' disabled'}>${retry ? '重试下载' : '下载'}</button>
+        <button class="secondary" data-model-download${actions.download ? '' : ' hidden'}${actions.enabled ? '' : ' disabled'}>${retry ? '重试下载' : status?.updateAvailable ? '更新组件' : '下载'}</button>
         ${recommended ? `<label class="model-accel"><input type="checkbox" data-model-accel> 同时安装推荐 CUDA（${escape(this.catalogSize(recommended))}）</label>` : ''}
         <button class="secondary" data-model-pause${actions.pause ? '' : ' hidden'}>暂停</button>
         <button class="secondary" data-model-resume${actions.resume ? '' : ' hidden'}>继续</button>
@@ -272,7 +272,7 @@ export class ModelsUI {
     const phase = status.phase;
     const actions = this.actionState(phase, entry?.enabled ?? true);
     card.dataset.phase = phase;
-    this.setText(card, '[data-model-status]', PHASE_LABEL[phase]);
+    this.setText(card, '[data-model-status]', phase === 'not_installed' && status.updateAvailable ? '有更新 · 将校验并复用已有文件' : PHASE_LABEL[phase]);
     const progress = card.querySelector<HTMLElement>('[data-model-progress]');
     if (progress) {
       progress.hidden = !(ACTIVE.includes(phase) || phase === 'paused');
@@ -292,7 +292,7 @@ export class ModelsUI {
     const option = this.container.querySelector<HTMLOptionElement>(`select[name="voiceModelId"] option[value="${cssEscape(status.id)}"]`);
     if (option) option.disabled = !(entry?.enabled || phase === 'ready');
     const download = card.querySelector<HTMLButtonElement>('[data-model-download]');
-    if (download) { download.disabled = !actions.enabled; download.textContent = phase === 'error' || phase === 'cancelled' ? '重试下载' : '下载'; }
+    if (download) { download.disabled = !actions.enabled; download.textContent = phase === 'error' || phase === 'cancelled' ? '重试下载' : status.updateAvailable && phase !== 'ready' ? '更新组件' : '下载'; }
   }
   private setText(root: HTMLElement, selector: string, text: string, hidden = false) {
     const element = root.querySelector<HTMLElement>(selector);
