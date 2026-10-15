@@ -16,7 +16,8 @@ int main(int argc,char** argv){
     if(h.type!=nv::ipc::request||!nv::ipc::string_read(fd,text)||!nv::ipc::string_read(fd,speaker)||!nv::ipc::string_read(fd,instruction)||!nv::ipc::read(fd,&seed,sizeof seed))return 1;
     if(text=="FAIL"){nv::ipc::text(fd,nv::ipc::error,"intentional test failure");return 1;}
     std::vector<float> pcm(2400,.125f);
-    for(int i=0;i<20;++i){if(!nv::ipc::message(fd,nv::ipc::pcm,pcm.data(),uint32_t(pcm.size()*sizeof(float))))return 0;std::this_thread::sleep_for(std::chrono::milliseconds(20));}
+    const char* delay=std::getenv("NV_FAKE_CHUNK_MS");
+    for(int i=0;i<20;++i){if(!nv::ipc::message(fd,nv::ipc::pcm,pcm.data(),uint32_t(pcm.size()*sizeof(float))))return 0;std::this_thread::sleep_for(std::chrono::milliseconds(delay?std::atoi(delay):20));}
     if(!nv::ipc::message(fd,nv::ipc::done))return 1;
  }
 }

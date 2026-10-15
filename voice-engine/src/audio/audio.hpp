@@ -7,7 +7,7 @@
 namespace nv {
 class Playback {
 public:
-    Playback(double preroll_seconds=1, double max_seconds=15);
+    Playback(double preroll_seconds=1, double max_seconds=30);
     ~Playback();
     bool open(std::string& error);
     bool push(const float*,std::size_t,const std::function<bool()>& cancelled);
@@ -18,6 +18,9 @@ public:
     std::size_t underruns() const;
     std::uint64_t consumed() const;
     bool buffering() const;
+    // Device callback entry point; also permits a deterministic, device-free
+    // audio clock in tests. Outputs silence while paused or awaiting preroll.
+    void render(float*, std::size_t);
 private:
     struct Impl; std::unique_ptr<Impl> impl_;
 };

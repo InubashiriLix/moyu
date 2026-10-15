@@ -43,7 +43,7 @@ nv_playback_position nv_get_playback_position(nv_session* s){
 }
 nv_config nv_default_config(){
     nv_config c{};c.models_dir="models/gguf";c.model="qwen3-tts-1.7b-customvoice-f16";c.speaker="Uncle_Fu";
-    c.threads=2;c.playback=1;c.cache_enabled=1;c.idle_seconds=60;c.preroll_seconds=1;c.max_buffer_seconds=15;c.seed=42;return c;
+    c.threads=2;c.playback=1;c.cache_enabled=1;c.idle_seconds=60;c.preroll_seconds=1;c.max_buffer_seconds=30;c.seed=42;return c;
 }
 nv_session* nv_create(const nv_config* supplied,nv_pcm_callback pcm,nv_progress_callback progress,nv_error_callback err,void* user){
     std::unique_ptr<nv_session> s;

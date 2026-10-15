@@ -23,8 +23,6 @@ namespace {
 constexpr std::uint32_t kSampleRate = 24000;
 constexpr std::size_t kPrerollDefaultFrames =
     static_cast<std::size_t>(1.0 * kSampleRate);       // 1s preroll
-constexpr std::size_t kMaxDefaultFrames =
-    static_cast<std::size_t>(15.0 * kSampleRate);      // 15s bounded ring
 constexpr auto kWaitSlice = std::chrono::milliseconds(20);
 
 std::size_t secondsToFrames(double s, double fallback) {
@@ -39,6 +37,7 @@ std::size_t secondsToFrames(double s, double fallback) {
 struct Playback::Impl {
     std::size_t cap_frames;      // bounded ring capacity (samples)
     std::size_t preroll_frames;  // frames required before playback starts
+    std::size_t resume_frames;
 
     std::vector<float> ring;     // 24 kHz mono float32 samples
     std::size_t head = 0;
@@ -49,6 +48,7 @@ struct Playback::Impl {
     std::condition_variable cv;
     bool paused = false;
     bool primed = false;         // preroll satisfied (or short final chunk)
+    bool started = false;
     bool eof = false;            // finish() called
     std::size_t underruns = 0;   // counted only after primed, before eof/pause
     std::uint64_t consumed_frames = 0;
@@ -58,10 +58,11 @@ struct Playback::Impl {
     bool device_inited = false;
 
     Impl(double preroll_seconds, double max_seconds)
-        : cap_frames(secondsToFrames(max_seconds, 15.0)),
+        : cap_frames(secondsToFrames(max_seconds, 30.0)),
           preroll_frames(secondsToFrames(preroll_seconds, 1.0)) {
         if (cap_frames < kPrerollDefaultFrames) cap_frames = kPrerollDefaultFrames;
         if (preroll_frames > cap_frames) preroll_frames = cap_frames;
+        resume_frames = preroll_frames;
         ring.assign(cap_frames, 0.0f);
     }
 
@@ -90,8 +91,10 @@ struct Playback::Impl {
         // Before preroll, after pause: emit silence, never consume, never count.
         if (paused || !primed) {
             std::memset(out, 0, frames * sizeof(float));
+            if (!paused && started && !eof) underruns += frames;
             return;
         }
+        started = true;
         std::size_t got = std::min<std::size_t>(frames, count);
         for (std::size_t i = 0; i < got; ++i) out[i] = ring[(head + i) % cap_frames];
         head = (head + got) % cap_frames;
@@ -99,7 +102,13 @@ struct Playback::Impl {
         consumed_frames += got;
         if (got < frames) {
             std::memset(out + got, 0, (frames - got) * sizeof(float));
-            if (!eof) underruns += (frames - got);  // real underrun only
+            if (!eof) {
+                underruns += (frames - got);
+                // Re-arm preroll rather than playing every late fragment.
+                // Repeated starvation grows the lead, bounded by the ring.
+                primed = false;
+                resume_frames = std::min(cap_frames, resume_frames * 2);
+            }
         }
         if (got) cv.notify_all();  // freed space for producers / drain()
     }
@@ -148,7 +157,7 @@ struct Playback::Impl {
             count += chunk;
             p += chunk;
             remaining -= chunk;
-            if (!primed && count >= preroll_frames) {
+            if (!primed && count >= resume_frames) {
                 primed = true;
                 cv.notify_all();
             }
@@ -185,6 +194,8 @@ struct Playback::Impl {
         head = tail = count = 0;
         consumed_frames = underruns = 0;
         primed = false;
+        started = false;
+        resume_frames = preroll_frames;
         eof = false;
         cv.notify_all();
     }
@@ -200,6 +211,7 @@ Playback::Playback(double preroll_seconds, double max_seconds)
 Playback::~Playback() = default;
 
 bool Playback::open(std::string& error) { return impl_->open(error); }
+void Playback::render(float* out, std::size_t frames) { impl_->render(out, frames); }
 bool Playback::push(const float* data, std::size_t n,
                     const std::function<bool()>& cancelled) {
     return impl_->push(data, n, cancelled);
@@ -217,7 +229,7 @@ std::uint64_t Playback::consumed() const {
 }
 bool Playback::buffering() const {
     std::lock_guard<std::mutex> lock(impl_->mtx);
-    return !impl_->paused && (!impl_->primed || (!impl_->eof && impl_->count == 0));
+    return !impl_->paused && !impl_->eof && (!impl_->primed || impl_->count == 0);
 }
 
 // ---------------------------------------------------------------------------

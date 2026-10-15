@@ -139,9 +139,14 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
                     std::size_t regenerated=0,skip=delivered;
                     // Deterministic replay after a long pause regenerates the
                     // unfinished segment; skip PCM already delivered.
-                    const bool prepared=s->runtime_configured&&s->worker->backend()=="cpu";
+                    // Local playback must not expose decoder-sized fragments:
+                    // a slower or busy GPU can otherwise pause within a word.
+                    // Prepare a complete text segment on disk while the audio
+                    // device plays earlier segments. Export-only GPU callbacks
+                    // retain streaming behavior; CPU keeps its existing staging.
+                    const bool prepared=s->config.playback||(s->runtime_configured&&s->worker->backend()=="cpu");
                     std::unique_ptr<FILE,decltype(&std::fclose)> spool(prepared?std::tmpfile():nullptr,&std::fclose);
-                    if(prepared&&!spool)throw std::runtime_error("cannot create CPU audio staging file");
+                    if(prepared&&!spool)throw std::runtime_error("cannot create audio staging file");
                     std::size_t staged=0;
                     ok=s->worker->synthesize(seg.text,spk,instruction,s->config.seed,
                       [&](const float* p,std::size_t n,int rate){
@@ -150,23 +155,23 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
                         if(n==drop)return !cancelled();
                         if(!spool&&s->runtime_configured&&s->worker->backend()=="cpu"){
                             spool.reset(std::tmpfile());
-                            if(!spool)throw std::runtime_error("cannot create CPU audio staging file");
+                            if(!spool)throw std::runtime_error("cannot create audio staging file");
                         }
                         if(spool){
                             if(cancelled())return false;
-                            if(staged+(n-drop)>16777216)throw std::runtime_error("CPU segment exceeds audio staging limit");
-                            if(std::fwrite(p+drop,sizeof(float),n-drop,spool.get())!=n-drop)throw std::runtime_error("CPU audio staging write failed");
+                            if(staged+(n-drop)>16777216)throw std::runtime_error("segment exceeds audio staging limit");
+                            if(std::fwrite(p+drop,sizeof(float),n-drop,spool.get())!=n-drop)throw std::runtime_error("audio staging write failed");
                             staged+=n-drop;return true;
                         }
                         if(!deliver(p+drop,n-drop,rate))return false;
                         delivered+=n-drop;return true;
                       });
                     if(ok&&spool&&!cancelled()){
-                        if(std::fseek(spool.get(),0,SEEK_SET))throw std::runtime_error("CPU staging rewind failed");
+                        if(std::fseek(spool.get(),0,SEEK_SET))throw std::runtime_error("audio staging rewind failed");
                         std::array<float,8192> samples{};
                         while(staged&&!cancelled()){
                             auto count=std::min(staged,samples.size());
-                            if(std::fread(samples.data(),sizeof(float),count,spool.get())!=count)throw std::runtime_error("CPU staging read failed");
+                            if(std::fread(samples.data(),sizeof(float),count,spool.get())!=count)throw std::runtime_error("audio staging read failed");
                             if(!deliver(samples.data(),count,int(kRate))){ok=false;break;}
                             delivered+=count;staged-=count;
                         }

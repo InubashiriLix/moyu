@@ -14,6 +14,11 @@ int main(){
     for(const auto&p:s){CHECK(p.text.size()<=360);joined+=p.text;}
     CHECK(joined==longtext);
     CHECK(nv::segment_text("他苦笑着走了。喜鹊飞过窗前。")[0].emotion=="calm");
+    const std::string short_sentence="她轻轻地合上书本，望着月光，微笑着说：“我们明天再出发吧。”";
+    s=nv::segment_text(short_sentence);
+    CHECK(s.size()==1);CHECK(s[0].text==short_sentence);
+    s=nv::segment_text("苏羽哭了, 哭的很小声");
+    CHECK(s.size()==1);CHECK(s[0].text=="苏羽哭了, 哭的很小声");
     nv::TextOptions o;o.instruction_override="温柔地朗读";
     CHECK(nv::segment_text("他愤怒地说：离开！",o)[0].instruction==o.instruction_override);
     o={};o.automatic=false;CHECK(nv::segment_text("他愤怒地说：离开！",o)[0].emotion=="calm");

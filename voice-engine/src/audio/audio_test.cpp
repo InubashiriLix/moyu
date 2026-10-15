@@ -166,6 +166,53 @@ static void test_cache_corrupt(const fs::path& dir) {
     CHECK(!c.read(Cache::key({"nan"}), nanout));
 }
 
+static void test_playback_recovery() {
+    Playback playback(1, 4);
+    std::vector<float> samples(96000, .25f), out(24000);
+    auto push = [&](std::size_t n) { CHECK(playback.push(samples.data(), n, {})); };
+    auto render = [&](std::size_t n) { playback.render(out.data(), n); };
+    push(24000);
+    render(24000);
+    CHECK(playback.consumed() == 24000);
+    render(240); // producer stalled: enter rebuffering
+    CHECK(playback.buffering());
+    push(2400); // a late decoder fragment must remain inaudible
+    render(2400);
+    CHECK(playback.consumed() == 24000);
+    CHECK(out[0] == 0);
+    push(24000);
+    render(2400); // one second is still too little after starvation
+    CHECK(playback.consumed() == 24000);
+    push(21600); // two seconds accumulated: recover continuously
+    CHECK(!playback.buffering());
+    render(24000);
+    CHECK(out[0] == .25f);
+    CHECK(playback.consumed() == 48000);
+    playback.pause(true);
+    render(24000);
+    CHECK(playback.consumed() == 48000);
+    CHECK(!playback.buffering());
+    playback.pause(false);
+    render(24000);
+    CHECK(playback.consumed() == 72000);
+    render(240);
+    push(2400);
+    playback.finish(); // EOF flushes a tail shorter than the recovery threshold
+    CHECK(!playback.buffering());
+    render(2400);
+    CHECK(playback.consumed() == 74400);
+    CHECK(playback.drain({}));
+    CHECK(playback.underruns() == 5280);
+    playback.clear();
+    CHECK(playback.consumed() == 0);
+    CHECK(playback.underruns() == 0);
+    push(24000); // a new request resets the enlarged recovery threshold
+    CHECK(!playback.buffering());
+    render(24000);
+    CHECK(playback.consumed() == 24000);
+    CHECK(!playback.push(samples.data(), 1, [] { return true; }));
+}
+
 int main() {
     fs::path dir = make_tmpdir("run");
     test_wav_roundtrip(dir);
@@ -174,6 +221,7 @@ int main() {
     test_cache_key();
     test_cache_roundtrip(dir);
     test_cache_corrupt(dir);
+    test_playback_recovery();
     fs::remove_all(dir);
     if (g_failures) {
         std::cerr << g_failures << " check(s) failed\n";
