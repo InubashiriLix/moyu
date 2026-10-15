@@ -42,6 +42,7 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
     std::vector<nv::Segment> segs;
     std::vector<float> collect;
     bool collecting = false, first = false, user_stop = false;
+    bool gpu_realtime = false; // measured during this request, never assumed from GPU name
     std::size_t total = 0;
     auto cancelled = [&] { return s->cancelled.load(std::memory_order_relaxed); };
     auto report = [&](const std::string& e) { if (err.empty()) err = e; if (s->on_error) s->on_error(e.c_str(), s->user); };
@@ -115,6 +116,7 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
                 collecting = cache != nullptr;
                 if (!s->worker) s->worker = std::make_unique<nv::Worker>(s->models, s->model, threads,s->backend,s->backends_dir,s->eco,&s->cancelled);
                 m.cold_start |= s->worker->running() ? 0 : 1;
+                if (!s->worker->running()) gpu_realtime = false;
                 const auto tl = Clock::now();
                 bool started = false;
                 for (;;) {
@@ -139,45 +141,90 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
                     std::size_t regenerated=0,skip=delivered;
                     // Deterministic replay after a long pause regenerates the
                     // unfinished segment; skip PCM already delivered.
-                    // Local playback must not expose decoder-sized fragments:
-                    // a slower or busy GPU can otherwise pause within a word.
-                    // Prepare a complete text segment on disk while the audio
-                    // device plays earlier segments. Export-only GPU callbacks
-                    // retain streaming behavior; CPU keeps its existing staging.
-                    const bool prepared=s->config.playback||(s->runtime_configured&&s->worker->backend()=="cpu");
-                    std::unique_ptr<FILE,decltype(&std::fclose)> spool(prepared?std::tmpfile():nullptr,&std::fclose);
-                    if(prepared&&!spool)throw std::runtime_error("cannot create audio staging file");
-                    std::size_t staged=0;
-                    ok=s->worker->synthesize(seg.text,spk,instruction,s->config.seed,
-                      [&](const float* p,std::size_t n,int rate){
-                        auto before=regenerated;regenerated+=n;
-                        auto drop=before<skip?std::min(n,skip-before):0;
-                        if(n==drop)return !cancelled();
-                        if(!spool&&s->runtime_configured&&s->worker->backend()=="cpu"){
-                            spool.reset(std::tmpfile());
-                            if(!spool)throw std::runtime_error("cannot create audio staging file");
+                    // Probe GPU throughput before exposing decoder fragments. Fast
+                    // GPUs then stream subsequent segments immediately, so a short
+                    // paragraph need not wait for the following long one to finish.
+                    const bool cpu = s->runtime_configured && s->worker->backend() == "cpu";
+                    const bool adaptive = s->config.playback && !cpu;
+                    const bool prepared = cpu || (adaptive && !gpu_realtime);
+                    auto make_spool = [] {
+                        auto* file = std::tmpfile();
+                        if (!file) throw std::runtime_error("cannot create audio staging file");
+                        return file;
+                    };
+                    std::unique_ptr<FILE, decltype(&std::fclose)> spool(prepared ? make_spool() : nullptr, &std::fclose);
+                    std::size_t staged = 0, observed = 0, first_chunk = 0;
+                    Clock::time_point first_chunk_at;
+                    bool hold_remainder = false, streaming_armed = false;
+                    std::size_t underruns_seen = 0;
+                    auto flush = [&] {
+                        if (!spool) return true;
+                        if (std::fseek(spool.get(), 0, SEEK_SET)) throw std::runtime_error("audio staging rewind failed");
+                        std::array<float, 8192> samples{};
+                        while (staged && !cancelled()) {
+                            const auto count = std::min(staged, samples.size());
+                            if (std::fread(samples.data(), sizeof(float), count, spool.get()) != count)
+                                throw std::runtime_error("audio staging read failed");
+                            if (!deliver(samples.data(), count, int(kRate))) return false;
+                            delivered += count; staged -= count;
                         }
-                        if(spool){
-                            if(cancelled())return false;
-                            if(staged+(n-drop)>16777216)throw std::runtime_error("segment exceeds audio staging limit");
-                            if(std::fwrite(p+drop,sizeof(float),n-drop,spool.get())!=n-drop)throw std::runtime_error("audio staging write failed");
-                            staged+=n-drop;return true;
+                        if (cancelled()) return false;
+                        spool.reset();
+                        if (adaptive && !s->playback->buffering()) {
+                            streaming_armed = true;
+                            underruns_seen = s->playback->underruns();
                         }
-                        if(!deliver(p+drop,n-drop,rate))return false;
-                        delivered+=n-drop;return true;
+                        return true;
+                    };
+                    auto fast_enough = [&] {
+                        // Exclude prefill/first-vocoder latency; require a measured
+                        // half-second window and a 5% production margin.
+                        const double elapsed = secs(first_chunk_at);
+                        return observed > first_chunk && elapsed >= .5 &&
+                            elapsed * kRate <= double(observed - first_chunk) * .95;
+                    };
+                    ok = s->worker->synthesize(seg.text, spk, instruction, s->config.seed,
+                      [&](const float* p, std::size_t n, int rate) {
+                        const auto before = regenerated; regenerated += n;
+                        const auto drop = before < skip ? std::min(n, skip - before) : 0;
+                        if (n == drop) return !cancelled();
+                        const auto count = n - drop;
+                        if (!observed) { first_chunk_at = Clock::now(); first_chunk = count; }
+                        observed += count;
+                        const bool now_cpu = s->runtime_configured && s->worker->backend() == "cpu";
+                        if (now_cpu) { gpu_realtime = false; hold_remainder = true; }
+                        if (adaptive && streaming_armed && s->playback->underruns() > underruns_seen) {
+                            // If load changes after calibration, hold the rest of
+                            // this segment, rather than repeatedly chopping words.
+                            gpu_realtime = false; hold_remainder = true;
+                        }
+                        if (!spool && (now_cpu || hold_remainder)) spool.reset(make_spool());
+                        if (spool) {
+                            if (cancelled()) return false;
+                            if (staged + count > 16777216) throw std::runtime_error("segment exceeds audio staging limit");
+                            if (std::fwrite(p + drop, sizeof(float), count, spool.get()) != count)
+                                throw std::runtime_error("audio staging write failed");
+                            staged += count;
+                            if (adaptive && !hold_remainder && observed >= 2 * kRate && fast_enough()) {
+                                gpu_realtime = true;
+                                return flush();
+                            }
+                            return true;
+                        }
+                        if (!deliver(p + drop, count, rate)) return false;
+                        delivered += count;
+                        if (adaptive && !streaming_armed && !s->playback->buffering()) {
+                            streaming_armed = true;
+                            underruns_seen = s->playback->underruns();
+                        }
+                        return true;
                       });
-                    if(ok&&spool&&!cancelled()){
-                        if(std::fseek(spool.get(),0,SEEK_SET))throw std::runtime_error("audio staging rewind failed");
-                        std::array<float,8192> samples{};
-                        while(staged&&!cancelled()){
-                            auto count=std::min(staged,samples.size());
-                            if(std::fread(samples.data(),sizeof(float),count,spool.get())!=count)throw std::runtime_error("audio staging read failed");
-                            if(!deliver(samples.data(),count,int(kRate))){ok=false;break;}
-                            delivered+=count;staged-=count;
-                        }
-                    }
-                    const bool reload=s->reload_after_pause.exchange(false);
-                    if((ok&&spool)||!reload||cancelled()||user_stop)break;
+                    // A short complete sentence can calibrate the next segment
+                    // too; it need not contain the two-second early-release lead.
+                    if (ok && adaptive && !hold_remainder && fast_enough()) gpu_realtime = true;
+                    if (ok && !cancelled()) ok = flush();
+                    const bool reload = s->reload_after_pause.exchange(false);
+                    if (ok || !reload || cancelled() || user_stop) break;
                     std::unique_lock<std::mutex> lock(s->mutex);
                     s->cv.wait(lock,[&]{return !s->paused||cancelled();});lock.unlock();
                     if(cancelled())break;

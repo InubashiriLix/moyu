@@ -42,7 +42,7 @@ if(BUILD_TESTING)
   add_dependencies(nv_continuity_test nv_fake_worker)
   set_target_properties(nv_continuity_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test-bin BUILD_RPATH "$ORIGIN")
   add_test(NAME continuity COMMAND nv_continuity_test)
-  set_tests_properties(continuity PROPERTIES TIMEOUT 30)
+  set_tests_properties(continuity PROPERTIES TIMEOUT 45)
 endif()
 if(NV_BUILD_ENGINE)
   # The pinned backend has Windows-only playback counters exposed unguarded

@@ -1,6 +1,6 @@
 [package]
 name = "moyu"
-version = "0.4.2"
+version = "0.4.3"
 description = "A small, quiet, keyboard-driven novel reader"
 authors = ["Moyu contributors"]
 edition = "2021"

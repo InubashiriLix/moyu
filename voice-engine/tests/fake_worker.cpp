@@ -17,7 +17,10 @@ int main(int argc,char** argv){
     if(text=="FAIL"){nv::ipc::text(fd,nv::ipc::error,"intentional test failure");return 1;}
     std::vector<float> pcm(2400,.125f);
     const char* delay=std::getenv("NV_FAKE_CHUNK_MS");
-    for(int i=0;i<20;++i){if(!nv::ipc::message(fd,nv::ipc::pcm,pcm.data(),uint32_t(pcm.size()*sizeof(float))))return 0;std::this_thread::sleep_for(std::chrono::milliseconds(delay?std::atoi(delay):20));}
+    const int chunks=text=="短段。"?16:text=="长段。"?80:20;
+    for(int i=0;i<chunks;++i){if(!nv::ipc::message(fd,nv::ipc::pcm,pcm.data(),uint32_t(pcm.size()*sizeof(float))))return 0;
+        const bool slow=text=="波动段。"&&i>=5;
+        std::this_thread::sleep_for(std::chrono::milliseconds(slow?300:delay?std::atoi(delay):20));}
     if(!nv::ipc::message(fd,nv::ipc::done))return 1;
  }
 }

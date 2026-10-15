@@ -90,6 +90,64 @@ int main() {
             CHECK(s->playback->consumed() == 48000);
             CHECK(nv_get_metrics(s.get()).underrun_samples == 0);
         }
+        {
+            // A faster-than-realtime GPU must overlap generation across
+            // unequal paragraphs. Preparing the entire long paragraph first
+            // causes a reproducible gap after the preceding short paragraph.
+            setenv("NV_FAKE_CHUNK_MS", "40", 1);
+            Samples samples;
+            Session s(nv_create(&c, pcm, nullptr, nullptr, &samples), nv_destroy); CHECK(s);
+            nv_runtime_options runtime{sizeof(runtime), 1, 2, 0, root.c_str()};
+            CHECK(nv_set_runtime_options(s.get(), &runtime));
+            s->playback = std::make_unique<nv::Playback>(1, 30); s->playback_open = true;
+            r.text = "短段。\n长段。";
+            CHECK(nv_submit(s.get(), &r));
+            std::this_thread::sleep_for(1100ms);
+            CHECK(samples.count > 16 * 2400); // long paragraph streams before completion
+            std::vector<float> out(240);
+            const auto limit = Clock::now() + 13s;
+            bool began = false;
+            while (nv_get_state(s.get()) == NV_RUNNING && Clock::now() < limit) {
+                s->playback->render(out.data(), out.size());
+                if (s->playback->consumed()) began = true;
+                if (began) CHECK(!s->playback->buffering());
+                std::this_thread::sleep_for(10ms);
+            }
+            CHECK(nv_get_state(s.get()) == NV_COMPLETED);
+            CHECK(nv_wait(s.get()) == NV_COMPLETED);
+            CHECK(samples.count == 96 * 2400);
+            CHECK(s->playback->consumed() == 96 * 2400);
+            CHECK(nv_get_metrics(s.get()).underrun_samples == 0);
+        }
+        {
+            // Load can change after a fast short paragraph calibrated streaming.
+            // A sudden slowdown may require one wait, but not a succession of
+            // decoder-sized fragments. Check sample preservation as well.
+            Samples samples;
+            Session s(nv_create(&c, pcm, nullptr, nullptr, &samples), nv_destroy); CHECK(s);
+            nv_runtime_options runtime{sizeof(runtime), 1, 2, 0, root.c_str()};
+            CHECK(nv_set_runtime_options(s.get(), &runtime));
+            s->playback = std::make_unique<nv::Playback>(1, 30); s->playback_open = true;
+            r.text = "短段。\n波动段。";
+            CHECK(nv_submit(s.get(), &r));
+            std::vector<float> out(240);
+            const auto limit = Clock::now() + 12s;
+            bool began = false, was_buffering = true;
+            int rebuffer = 0;
+            while (nv_get_state(s.get()) == NV_RUNNING && Clock::now() < limit) {
+                s->playback->render(out.data(), out.size());
+                if (s->playback->consumed()) began = true;
+                const bool buffering = s->playback->buffering();
+                if (began && buffering && !was_buffering) ++rebuffer;
+                was_buffering = buffering;
+                std::this_thread::sleep_for(10ms);
+            }
+            CHECK(nv_get_state(s.get()) == NV_COMPLETED);
+            CHECK(nv_wait(s.get()) == NV_COMPLETED);
+            CHECK(rebuffer == 1);
+            CHECK(samples.count == 36 * 2400);
+            CHECK(s->playback->consumed() == 36 * 2400);
+        }
         unsetenv("NV_FAKE_CHUNK_MS");
         std::filesystem::remove_all(dir);
         std::cout << "slow CPU/CUDA/Vulkan playback continuity checks passed\n";
