@@ -228,7 +228,7 @@ mod tests {
         let mut file = open(&path);
         // 预置两个分块：前块全 0x11，后块前 4 字节为 0xBB。
         let mut initial = vec![0x11u8; 8];
-        initial.extend(std::iter::repeat(0xBB).take(16));
+        initial.extend([0xBB; 16]);
         file.seek(SeekFrom::Start(0)).unwrap();
         file.write_all(&initial).unwrap();
         file.flush().unwrap();
