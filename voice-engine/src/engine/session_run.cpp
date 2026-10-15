@@ -7,6 +7,9 @@
 #include <vector>
 #include <fstream>
 #include <stdexcept>
+#include <cstdio>
+#include <array>
+#include <regex>
 
 namespace {
 constexpr std::size_t kRate = 24000;
@@ -22,7 +25,7 @@ std::string fingerprint(const std::string& path) {
     if (ec) return path + ":missing";
     auto mt = std::filesystem::last_write_time(path, ec);
     long long m = ec ? 0 : static_cast<long long>(mt.time_since_epoch().count());
-    return path + ":" + std::to_string(static_cast<unsigned long long>(sz)) + ":" + std::to_string(m);
+    return std::filesystem::path(path).filename().string() + ":" + std::to_string(static_cast<unsigned long long>(sz)) + ":" + std::to_string(m);
 }
 }  // namespace
 
@@ -86,6 +89,7 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
         std::ifstream manifest(s->models + "/manifest.json");
         std::string manifest_data((std::istreambuf_iterator<char>(manifest)),{});
         if(manifest_data.size()>65536)throw std::runtime_error("model manifest is too large");
+        manifest_data=std::regex_replace(manifest_data,std::regex("\"(backend_dir|generated_at)\"\\s*:\\s*\"[^\"]*\"\\s*,?"),"");
         const std::string manifestFp=nv::Cache::key({manifest_data});
         const int threads = s->config.threads > 0 ? s->config.threads : 2;
 
@@ -96,7 +100,7 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
             std::string key;
             collect.clear();
             collecting = cache != nullptr;
-            const bool hit = cache && (key = nv::Cache::key({s->models, s->model, modelFp, tokFp, spk,
+            const bool hit = cache && (key = nv::Cache::key({s->model, modelFp, tokFp, spk,
                                         seg.text, instruction, std::to_string(static_cast<long long>(s->config.seed)),
                                         manifestFp,kBackendCommit, kStreamingProfile,"temperature=.75 top_k=16 top_p=.9 repetition=1.02 max_tokens=2048"}),
                                        cache->read(key, collect));
@@ -109,7 +113,7 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
             } else {
                 collect.clear();
                 collecting = cache != nullptr;
-                if (!s->worker) s->worker = std::make_unique<nv::Worker>(s->models, s->model, threads);
+                if (!s->worker) s->worker = std::make_unique<nv::Worker>(s->models, s->model, threads,s->backend,s->backends_dir,s->eco,&s->cancelled);
                 m.cold_start |= s->worker->running() ? 0 : 1;
                 const auto tl = Clock::now();
                 bool started = false;
@@ -135,15 +139,40 @@ void nv_run(nv_session* s, std::string text, nv::TextOptions options, std::strin
                     std::size_t regenerated=0,skip=delivered;
                     // Deterministic replay after a long pause regenerates the
                     // unfinished segment; skip PCM already delivered.
+                    const bool prepared=s->runtime_configured&&s->worker->backend()=="cpu";
+                    std::unique_ptr<FILE,decltype(&std::fclose)> spool(prepared?std::tmpfile():nullptr,&std::fclose);
+                    if(prepared&&!spool)throw std::runtime_error("cannot create CPU audio staging file");
+                    std::size_t staged=0;
                     ok=s->worker->synthesize(seg.text,spk,instruction,s->config.seed,
                       [&](const float* p,std::size_t n,int rate){
                         auto before=regenerated;regenerated+=n;
                         auto drop=before<skip?std::min(n,skip-before):0;
                         if(n==drop)return !cancelled();
+                        if(!spool&&s->runtime_configured&&s->worker->backend()=="cpu"){
+                            spool.reset(std::tmpfile());
+                            if(!spool)throw std::runtime_error("cannot create CPU audio staging file");
+                        }
+                        if(spool){
+                            if(cancelled())return false;
+                            if(staged+(n-drop)>16777216)throw std::runtime_error("CPU segment exceeds audio staging limit");
+                            if(std::fwrite(p+drop,sizeof(float),n-drop,spool.get())!=n-drop)throw std::runtime_error("CPU audio staging write failed");
+                            staged+=n-drop;return true;
+                        }
                         if(!deliver(p+drop,n-drop,rate))return false;
                         delivered+=n-drop;return true;
                       });
-                    if(!s->reload_after_pause.exchange(false)||cancelled()||user_stop)break;
+                    if(ok&&spool&&!cancelled()){
+                        if(std::fseek(spool.get(),0,SEEK_SET))throw std::runtime_error("CPU staging rewind failed");
+                        std::array<float,8192> samples{};
+                        while(staged&&!cancelled()){
+                            auto count=std::min(staged,samples.size());
+                            if(std::fread(samples.data(),sizeof(float),count,spool.get())!=count)throw std::runtime_error("CPU staging read failed");
+                            if(!deliver(samples.data(),count,int(kRate))){ok=false;break;}
+                            delivered+=count;staged-=count;
+                        }
+                    }
+                    const bool reload=s->reload_after_pause.exchange(false);
+                    if((ok&&spool)||!reload||cancelled()||user_stop)break;
                     std::unique_lock<std::mutex> lock(s->mutex);
                     s->cv.wait(lock,[&]{return !s->paused||cancelled();});lock.unlock();
                     if(cancelled())break;

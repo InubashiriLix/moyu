@@ -80,6 +80,7 @@ export class VoiceUI {
     void transport.subscribe(state => this.accept(state)).catch(options.fail);
   }
   get open() { return !this.settings.hidden || !this.menu.hidden; }
+  get status(): VoiceStatus { return this.state; }
   private async copySelection() {
     if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(this.selection); return; }
     const input = document.createElement('textarea'); input.value = this.selection; input.readOnly = true;
@@ -94,7 +95,7 @@ export class VoiceUI {
     if (!this.settings.hidden) { this.closeSettings(); return; }
     this.closeMenu(false); const p = this.options.preferences();
     this.settings.innerHTML = `<div class="voice-heading"><strong>朗读</strong><button data-voice="close" aria-label="关闭朗读设置">×</button></div>
-      ${this.transport.available ? '' : '<p class="note">本版朗读需要 Linux 桌面应用和 NVIDIA CUDA；浏览器预览不支持朗读。</p>'}
+      ${this.transport.available ? '' : '<p class="note">朗读需要 Linux 桌面应用；支持 CPU、Vulkan 和可选 CUDA 后端，浏览器预览不支持朗读。</p>'}
       <div class="voice-actions"><button data-voice="read"${!this.transport.available || !this.options.book() ? ' disabled' : ''}>从当前段开始 <kbd>gr</kbd></button><button data-voice="toggle"${!this.active ? ' disabled' : ''}>暂停／继续 <kbd>gp</kbd></button><button data-voice="stop"${!this.active ? ' disabled' : ''}>停止 <kbd>gs</kbd></button></div>
       <p class="note">从屏幕顶部所在段落的段首开始，读到本章结束。隐藏窗口后继续朗读。</p>
       <label class="setting"><span>声音</span><select name="voiceSpeaker" aria-label="朗读声音"><option value="Uncle_Fu"${p.voiceSpeaker === 'Uncle_Fu' ? ' selected' : ''}>男声 · Uncle Fu</option><option value="Serena"${p.voiceSpeaker === 'Serena' ? ' selected' : ''}>女声 · Serena</option></select></label>
@@ -106,7 +107,7 @@ export class VoiceUI {
   async read(position = this.reader.speechStartPosition()) {
     if (!this.options.ready()) throw new Error('正在打开小说，请稍候。');
     const book = this.options.book(); if (!book) throw new Error('先打开一本小说。');
-    if (!this.transport.available) throw new Error('本版朗读需要 Linux 桌面应用和 NVIDIA CUDA；浏览器预览不支持朗读。');
+    if (!this.transport.available) throw new Error('朗读需要 Linux 桌面应用；支持 CPU、Vulkan 和可选 CUDA 后端，浏览器预览不支持朗读。');
     const paragraph = paragraphAt(book, position); if (!paragraph) throw new Error('本章没有可朗读的正文。');
     const id = ++this.id; this.follow = true;
     this.state = { requestId: id, bookId: book.id, chapter: paragraph.chapter, phase: 'loading', paragraphStart: null, paragraphEnd: null, offset: null, error: null };

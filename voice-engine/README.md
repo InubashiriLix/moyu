@@ -1,74 +1,59 @@
 # Novel Voice · 小说语音引擎
 
-独立的 Linux 本地中文小说朗读引擎：Qwen3-TTS 1.7B CustomVoice、原生 C++17 / GGML / CUDA，增量输出音频。正式运行不调用 Python、云端 API 或额外语言模型。
+Linux x86_64 本地中文朗读引擎，使用 C++17、GGML 和 Qwen3-TTS 1.7B CustomVoice。支持 CPU、Vulkan 和可选 CUDA 工作进程，运行时不需要 Python、PyTorch 或云端服务。
 
-默认 F16 模型、普通话男声 `Uncle_Fu`，可选女声 `Serena`。在当前 RTX 5060 的实测中，Q5_K 路径比 F16 明显慢，因此不按文件大小选择默认模型。根据明确语气描述、对话及标点生成轻量风格指令；正文与指令分开。模型自行处理文本韵律，规则无法可靠判断讽刺、隐含情绪或角色身份。
+默认 F16 模型、男声 Uncle_Fu，可选女声 Serena；Q5_K 为实验性省空间选项。轻量规则根据明确语气、对话及标点生成独立风格指令，不能可靠理解角色身份、讽刺或隐含情绪。
 
-## 本机使用
+## 构建
 
-```bash
-cd /home/inubashiri/Projects/novel-voice
-build/bin/novel-voice --text '他低声说：“先别开门。”' --output sample.wav
-build/bin/novel-voice --input novel.txt --speaker Serena
-build/bin/novel-voice --text '雨停了，她推开窗。' --instruction '温柔自然地朗读'
-build/bin/novel-voice --input novel.txt --plan
+需要 CMake 3.24+、Ninja、C/C++ 编译器和 OpenSSL 开发文件。Vulkan 构建另需 Vulkan 开发文件和 glslc，CUDA 构建另需支持目标架构的 CUDA SDK 及兼容宿主编译器。
+
+```sh
+NV_BACKEND=cpu scripts/build.sh
+NV_BACKEND=cpu NV_CPU_VARIANT=avx2 scripts/build.sh
+NV_BACKEND=vulkan scripts/build.sh
+NV_BACKEND=cuda NV_CUDA_ROOT=/path/to/cuda NV_CUDA_HOST_CXX=/path/to/g++ scripts/build.sh
 ```
 
-`--plan` 只显示分段、UTF-8 字节位置及风格，无需模型。输入支持 UTF-8 TXT，可带 BOM；文件上限 64MiB。不负责 EPUB 解析，后续由 Moyu 提供文本。
+产物分别位于 build-cpu、build-cpu-avx2、build-vulkan 和 build-cuda。CPU 基线不启用 SSE4.2、AVX、AVX2、F16C 或宿主 native 编译选项；AVX2 变体独立提供。会话库检测 CPU 支持 AVX2、FMA、F16C 后才启动优化工作进程。CUDA 默认编译目标为 `75-real;80-real;86-real;89;120a-real`，包含 compute_89 PTX，可通过 NV_CUDA_ARCH 覆盖。构建固定版本后端，补丁及许可证见 DEPENDENCIES.md。
 
-`--no-play --output chapter.wav` 只导出；`--no-cache` 禁用缓存；`--neutral` 禁用自动风格规则。`--metrics result.json` 保存计时与缓存统计。具体选项见 `--help`。
+## 模型与运行
 
-`--session` 保持会话，标准输入接受 `start`、`pause`、`resume`、`stop`、`status`、`wait`、`quit`。初始文本自动开始，`start` 重读相同文本；新文本提交通过 C ABI。`wait` 阻塞直到该请求结束。Ctrl+C 会停止并释放工作进程。状态输出为 JSON，状态值见头文件。
+Moyu 默认包通过设置页下载或导入模型。模型目录需要对应主模型和 qwen3-tts-tokenizer-f16.gguf；下载器会检查所有文件的完整 SHA-256 后再原子安装。手工转换可使用 scripts/prepare_models.py，Python 与转换依赖只用于开发准备。
 
-## 资源与生命周期
-
-- 每个会话最多一个独立 GPU 工作进程；默认两个 CPU 线程配置。
-- 音频播放默认预缓冲 1 秒，最多排队 15 秒，生产者受到背压限制。
-- 完整片段缓存默认位于 `$XDG_CACHE_HOME/novel-voice`，或 `~/.cache/novel-voice`，上限 512MiB；单片段缓存收集最多 60 秒音频。
-- 空闲或暂停 60 秒后卸载工作进程。长时间暂停恢复时，用固定 seed 再生成未完成片段，并跳过已经输出的样本；首次恢复需要重新加载模型。
-- 保存音频时流式写入 `.partial`，成功结束才发布最终 WAV。取消或错误不会将未完成音频标成成功。
-- CUDA、模型、音频设备失败会明确报错；不会自动切换为 CPU 推理。无音频设备时可使用 `--no-play`。
-
-缓存身份包含模型及解码器文件指纹、模型 manifest 摘要、后端版本、文本、声音、风格和采样配置。模型应通过准备工具发布后保持只读；替换模型时重新生成 manifest。
-
-## 构建与准备模型
-
-需要 CMake 3.24+、Ninja、OpenSSL 开发文件、CUDA 12.8+（本机使用 13.0）、CUDA 支持的宿主 C++ 编译器。默认目标为 `89-real;120a-real`，包含 RTX 4060（包括 Laptop）及 RTX 5060 的原生内核。可通过 `NV_CUDA_ARCH` 覆盖；仅为新架构编译的内核不能在旧 GPU 上运行。系统编译器用于普通 C++，`NV_CUDA_HOST_CXX` 单独指定 NVCC 的宿主编译器。
-
-```bash
-bash scripts/build.sh
-uv venv --python 3.12 .venv-tools
-uv pip install --python .venv-tools/bin/python -r scripts/requirements-tools.txt
-uv pip install --python .venv-tools/bin/python torch --index-url https://download.pytorch.org/whl/cpu
-.venv-tools/bin/python scripts/prepare_models.py
+```sh
+build-cpu/bin/novel-voice --text '她轻声说：“雨停了。”' --models-dir /path/to/models --speaker Serena --backend cpu
+build-vulkan/bin/novel-voice --input novel.txt --models-dir /path/to/models --backend vulkan
+build-cuda/bin/novel-voice --text '我们出发吧。' --models-dir /path/to/models --backend cuda --no-play --output sample.wav
 ```
 
-模型准备只下载两个固定官方版本，输出到 `models/gguf`，其中 F16 是默认模型，Q5_K 保留为更小文件的对照选项（`--model qwen3-tts-1.7b-customvoice-q5_k`）。下载较慢时可先运行 `scripts/download_mirror.py`，它使用官方 ModelScope 镜像，并验证固定 Hugging Face LFS SHA256；之后运行准备脚本时加 `--skip-download`。
+`--backends-dir DIR` 指定包含 cpu、vulkan、cuda 子目录的工作进程根目录，`--backend auto` 依次尝试 CUDA、Vulkan、CPU。CPU 优化变体位于 cpu/avx2。独立构建还支持会话库同目录的 nv-worker。
 
-若本机无 CUDA SDK，可在工具虚拟环境安装 `cuda-toolkit[cublas,cudart,nvcc,cccl]==13.0.2`。NVIDIA pip SDK 位于 `nvidia/cu13`；其 `lib` 内需要常规 `libcudart.so`、`libcublas.so`、`libcublasLt.so` 链接及 `lib64 -> lib`。可改用标准 CUDA SDK 并设置 `NV_CUDA_ROOT`。本机兼容 GCC 13 位于 `.toolchain`，不修改系统编译器。
+`--power-mode eco` 为默认模式：CPU 1 个合成线程，GPU 2 个辅助线程，空闲或长暂停 15 秒后卸载。balanced 使用 4 个线程、60 秒卸载。主后端及额外 CPU 回退后端均设置实际 GGML 线程数。CPU 先生成完整句段到临时文件，再正常速播放；慢机器会出现等待，不保证实时朗读。CPU F16 加载约 4.2 GB，Q5_K 约 2.4 GB，合成峰值随文本与缓冲而变化。
 
-依赖版本及许可证见 [DEPENDENCIES.md](DEPENDENCIES.md)。权重、工具环境和编译产物不进入 Git。
+GPU 初始化失败时，自动模式会尝试下一个后端；合成阶段仅在尚未交出本句任何 PCM 时允许回退。已交出 PCM 后的失败明确报错，避免重播。Vulkan 软件光栅器不作为硬件加速设备。支持 AVX2/FMA/F16C 的 CPU 也会为 GPU 的辅助计算选择优化 CPU 后端，前提是两种构建的 ggml-base 文件逐字节一致；否则保留基线后端。选择只影响工作进程。CUDA 启动前检查实际内核镜像是否兼容，生产进程禁用 GGML 自动调用 GDB；不调用 Python 调试器。
 
-## 接口与验证
+`--plan` 显示分段与风格，无需模型。输入为 UTF-8 TXT，最多 64 MiB；EPUB 解析由 Moyu 提供。`--neutral` 关闭自动风格，`--no-cache` 关闭缓存，`--metrics FILE` 保存生成时长及实际后端。`--no-play` 不打开音频设备，也不会播放声音。
 
-[nv_engine.h](src/engine/nv_engine.h) 提供 C ABI：创建、提交文本与可选上下文、PCM/进度/错误回调、暂停、继续、停止、等待及释放。音频是 24kHz 单声道 float32；保存为 PCM16 WAV。PCM 回调数据只在回调期间有效。进度回调参数是已生成文本的 UTF-8 字节终点与全文字节长度；阅读高亮应结合消费端播放时钟。不要在回调中销毁、等待或提交同一个会话，不要跨 C ABI 抛出异常。
+`--session` 接受 start、pause、resume、stop、status、wait、quit。Ctrl+C 停止并释放工作进程。使用 `--help` 查看选项。
 
-`nv_engine_abi_version()` 返回 1；`nv_get_playback_position()` 返回音频设备回调实际消费的样本数、对应生成片段的原文 UTF-8 字节范围及缓冲状态。首段播放前 `valid=0`，预缓冲、暂停和欠载静音不增加消费计数。设备自身的输出延迟不包含在内。Moyu 据此映射到原文段落；不要使用生成进度提前移动正文高亮。
+## 资源与接口
 
-本机串行解码已完成 30 分 13 秒真实音频连续播放（报告 `artifacts/serial-long-playback/long.json`），无崩溃、无欠载；进程树 RSS 峰值 922MiB、显存 4206MiB、平均 CPU 约 0.65 个逻辑核。播放使用私有 PulseAudio 空设备，仅证明播放链路与资源表现，未评估主观听感。热启动短段复测首包 0.46 秒、纯生成 RTF 约 0.81，尚未达到 0.7 目标；长测试的耗时包含播放背压。
+会话最多使用一个模型工作进程；不同 GPU 后端按顺序尝试。播放预缓冲 1 秒，环形缓冲最多 15 秒；CPU 单句磁盘暂存最多约 64 MiB。片段缓存位于 XDG_CACHE_HOME/novel-voice，默认上限 512 MiB，单条缓存最多 60 秒 PCM。暂停超过闲置期限会卸载模型，恢复时重新生成并跳过已经交出的样本。输出 WAV 使用 .partial，成功后才改为正式文件。
 
-```bash
+src/engine/nv_engine.h 提供 ABI 1：创建、配置、提交、PCM 回调、播放位置、暂停、恢复、停止及销毁。新增 nv_set_runtime_options 配置版本化后端选项，nv_get_runtime_info_json 返回实际后端、设备及回退原因。PCM 为 24 kHz 单声道 float32，回调数据只在回调期间有效；不要在回调中销毁、等待或提交同一会话。
+
+高亮依赖 nv_get_playback_position 的实际消费时钟，生成进度不能证明用户已经听到相应文字。首包计时也不等于扬声器实际出声时间；播放模式耗时包含背压及暂停。
+
+## 验证
+
+```sh
 cmake -S . -B build-tests -G Ninja -DNV_BUILD_ENGINE=OFF -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-tests --parallel 4
 ctest --test-dir build-tests --output-on-failure
-.venv-tools/bin/python -m unittest discover -s tests -p '*_test.py'
-.venv-tools/bin/python scripts/benchmark.py --executable build/bin/novel-voice --models-dir models/gguf
+build-cpu/bin/nv-worker --probe
+build-vulkan/bin/nv-worker --probe
+build-cuda/bin/nv-worker --probe
 ```
 
-会话单元测试的替身仅存在于 `build-tests/test-bin`，不安装，也不供正式 CLI 使用。真实模型测试与替身控制测试分别记录，不能用替身证明语音质量或 GPU 性能。
-
-基准报告以 100% CPU 为一个逻辑核心，采样进程树 RSS、GPU 显存和功耗。`first_pcm_seconds` 是首个可用音频包延迟，不等同首个实际听到声音；冷启动包括加载。播放模式的合成耗时包含背压等待，不能用于声称纯推理速度。
-
-性能目标：热启动首包 ≤2 秒，合成耗时/音频时长 ≤0.7，进程树 RAM ≤3GiB、显存 ≤6GiB、平均 CPU ≤一个逻辑核心。以本机报告为准，不把模型参数量、其他显卡数据或缓存播放当成实测。
-
-启动前会验证实际 CUDA 内核可用性，不兼容设备通过 C ABI 返回明确错误，不加载模型。生产 worker 默认设置 `GGML_NO_BACKTRACE=1`，避免崩溃时调用系统 GDB；开发调试可设置 `GGML_NO_BACKTRACE=0`。
+探针不加载模型或打开音频设备。会话替身只存在于测试目录，不安装到发行包。当前实现已在 i5-14600KF / RTX 5060 上验证 CPU、Vulkan、CUDA 真实合成与禁用 GPU 后的 CPU 回退；其他 CPU / GPU 型号尚未实机验证，不能把架构镜像清单当作完整硬件兼容性证明。GPU 测试顺序运行，播放测试使用私有静音输出。

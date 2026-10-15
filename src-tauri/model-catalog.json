@@ -1,0 +1,976 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-15T08:26:37Z",
+  "entries": [
+    {
+      "id": "qwen3-tts-1.7b-customvoice-f16",
+      "label": "Qwen3-TTS 1.7B CustomVoice (F16)",
+      "kind": "model",
+      "variant": "f16",
+      "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe",
+      "enabled": true,
+      "experimental": false,
+      "files": [
+        {
+          "name": "qwen3-tts-1.7b-customvoice-f16.gguf",
+          "size": 3839590720,
+          "sha256": "9b21d8916b913de7f95b44792ef6808dc0f38a16f20bad546ea7e8b4517ff299",
+          "chunks": [
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk000",
+              "offset": 0,
+              "size": 268435456,
+              "sha256": "e49b188884b2564ede92093471d259b19ee1d538c97a896465a3cf1c46378da9",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk000",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk001",
+              "offset": 268435456,
+              "size": 268435456,
+              "sha256": "0be42d5cc7ba5df82e0baab1fb0a2bb7c942082d98375920616afbb935271328",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk001",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk002",
+              "offset": 536870912,
+              "size": 268435456,
+              "sha256": "45d50696df22927964679beedab30c7bb4fc83e2f08f6f03832e64250e7713d7",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk002",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk002",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk002",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk003",
+              "offset": 805306368,
+              "size": 268435456,
+              "sha256": "f7906f9aa27eae5eb7ba8203772870eb614bb66ea56938ca15363925da3580b9",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk003",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk003",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk003",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk004",
+              "offset": 1073741824,
+              "size": 268435456,
+              "sha256": "b2b29eae86707f7cfcf0ef6c350392d0d1e3eb21c362f34c5fccd184528b98ce",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk004",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk004",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk004",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk005",
+              "offset": 1342177280,
+              "size": 268435456,
+              "sha256": "aa19ea10942016e060f02d9f94b9d0e3f36fce995beeff90044c0fc0b6ead363",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk005",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk005",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk005",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk006",
+              "offset": 1610612736,
+              "size": 268435456,
+              "sha256": "2de6fc06f6da6752d4baeeb9729ef702cc5197577666e34f9f18b0c23b11f72e",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk006",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk006",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk006",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk007",
+              "offset": 1879048192,
+              "size": 268435456,
+              "sha256": "3558cff70bb68e7d24d9e16e636f89b8e11be51d77533400b27a58b5413b06d2",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk007",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk007",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk007",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk008",
+              "offset": 2147483648,
+              "size": 268435456,
+              "sha256": "57acfeadc44207463f8fddcc8d234e79a28d70b7999405c84c98578e93635685",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk008",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk008",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk008",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk009",
+              "offset": 2415919104,
+              "size": 268435456,
+              "sha256": "20488be4a1a6180b7bc78824f3d6303c60b6d06640c39ed11fb85ebe8635cac3",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk009",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk009",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk009",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk010",
+              "offset": 2684354560,
+              "size": 268435456,
+              "sha256": "1f518904b850afdba874108becf965541c539e22fd14f2b278a645f842d7820e",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk010",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk010",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk010",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk011",
+              "offset": 2952790016,
+              "size": 268435456,
+              "sha256": "941786135037cb3e5a30a144f34e9afeb20ee0cc1de3ca2428e1f4500b07b989",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk011",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk011",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk011",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk012",
+              "offset": 3221225472,
+              "size": 268435456,
+              "sha256": "33a5d04b1656bdbbff0cb4db3c6673868e46786a00dc8fa2258df29858ec7367",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk012",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk012",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk012",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk013",
+              "offset": 3489660928,
+              "size": 268435456,
+              "sha256": "a02df952f23de6a9dc7e5b040dbc60cd0c6f9d235f1cdf466f6a92984ef2547f",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk013",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk013",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk013",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-f16.gguf.chunk014",
+              "offset": 3758096384,
+              "size": 81494336,
+              "sha256": "a5b74e0134c8f9e982a687140ad7a02d6c6f2b43ce3977eca1a828565b0b79b4",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk014",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-f16.gguf.chunk014",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-f16.gguf.chunk014",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "qwen3-tts-tokenizer-f16.gguf",
+          "size": 341157120,
+          "sha256": "d1ad9660bd99343f4851d5a4b17e31f65648feb3559f6ea062ae6575e5cd9d90",
+          "chunks": [
+            {
+              "name": "qwen3-tts-tokenizer-f16.gguf.chunk000",
+              "offset": 0,
+              "size": 268435456,
+              "sha256": "0763e88d6999f33b24db3aa263717abde462d514166ad54c6c9306e52bf34c25",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-tokenizer-f16.gguf.chunk000",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-tokenizer-f16.gguf.chunk001",
+              "offset": 268435456,
+              "size": 72721664,
+              "sha256": "5e4dfd512980fe3eff0fdfc4b1b610d66c10865efe3403d8d62f93821440bb5a",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-tokenizer-f16.gguf.chunk001",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwen3-tts-1.7b-customvoice-q5_k",
+      "label": "Qwen3-TTS 1.7B CustomVoice (Q5_K)",
+      "kind": "model",
+      "variant": "q5_k",
+      "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe",
+      "enabled": true,
+      "experimental": true,
+      "files": [
+        {
+          "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf",
+          "size": 1872920896,
+          "sha256": "1c7e390c88dbc3713cdb1d74a04016be020d16a98ea14c9402a49f8f7ab7980f",
+          "chunks": [
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk000",
+              "offset": 0,
+              "size": 268435456,
+              "sha256": "ace4affa84ac6ea792616bec86e4f5fdc7c18e858cc6057da659baa1bc90ade9",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk000",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk001",
+              "offset": 268435456,
+              "size": 268435456,
+              "sha256": "3a7d32780247ed39fc178856da3c33c75f194086d67b47becb7af04aa073764e",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk001",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk002",
+              "offset": 536870912,
+              "size": 268435456,
+              "sha256": "025ad00dab3ef298b72a3126dca368c891ea1f0ca158731da79acc81877647b3",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk002",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk002",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk002",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk003",
+              "offset": 805306368,
+              "size": 268435456,
+              "sha256": "d70469f7b1d5b61fd3d40fa0a8560fcc2f9339b28e7222c489a3ccdb47d70f0a",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk003",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk003",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk003",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk004",
+              "offset": 1073741824,
+              "size": 268435456,
+              "sha256": "3bc56881722545907de04f307ccfe4d0d422bd43f5f7452c749340b81efadd45",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk004",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk004",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk004",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk005",
+              "offset": 1342177280,
+              "size": 268435456,
+              "sha256": "1f6cf2f757ba63b8b72e80bfb02a149163197459a1b6d2ca1c71dca5291e706f",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk005",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk005",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk005",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk006",
+              "offset": 1610612736,
+              "size": 262308160,
+              "sha256": "7e2981d414e43ea6fd6398ae739aae9eb9ed467eceebfb87699a9c76a2b9fe27",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk006",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk006",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-1.7b-customvoice-q5_k.gguf.chunk006",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "qwen3-tts-tokenizer-f16.gguf",
+          "size": 341157120,
+          "sha256": "d1ad9660bd99343f4851d5a4b17e31f65648feb3559f6ea062ae6575e5cd9d90",
+          "chunks": [
+            {
+              "name": "qwen3-tts-tokenizer-f16.gguf.chunk000",
+              "offset": 0,
+              "size": 268435456,
+              "sha256": "0763e88d6999f33b24db3aa263717abde462d514166ad54c6c9306e52bf34c25",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-tokenizer-f16.gguf.chunk000",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "qwen3-tts-tokenizer-f16.gguf.chunk001",
+              "offset": 268435456,
+              "size": 72721664,
+              "sha256": "5e4dfd512980fe3eff0fdfc4b1b610d66c10865efe3403d8d62f93821440bb5a",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice/resolve/508b3f32c95bbee1cc30f6e8083bc1ac76834b58/qwen3-tts-tokenizer-f16.gguf.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "github",
+                  "url": "https://github.com/InubashiriLix/moyu/releases/download/models-v1/qwen3-tts-tokenizer-f16.gguf.chunk001",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cuda-linux-x86_64-abi1",
+      "label": "CUDA backend (linux-x86_64, engine ABI 1)",
+      "kind": "backend",
+      "variant": "cuda",
+      "revision": "74422b-cuda13-abi1-r1",
+      "enabled": true,
+      "experimental": true,
+      "files": [
+        {
+          "name": "GGML-MIT.txt",
+          "size": 1078,
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "chunks": [
+            {
+              "name": "GGML-MIT.txt.chunk000",
+              "offset": 0,
+              "size": 1078,
+              "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/GGML-MIT.txt.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/GGML-MIT.txt.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "NVIDIA-CUDA-EULA.txt",
+          "size": 59262,
+          "sha256": "ad6f5853fba0ca0d159d0f58d49ae49830c2f8c93f7a92648b9ce90adb4c6ccd",
+          "chunks": [
+            {
+              "name": "NVIDIA-CUDA-EULA.txt.chunk000",
+              "offset": 0,
+              "size": 59262,
+              "sha256": "ad6f5853fba0ca0d159d0f58d49ae49830c2f8c93f7a92648b9ce90adb4c6ccd",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/NVIDIA-CUDA-EULA.txt.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/NVIDIA-CUDA-EULA.txt.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Qwen3-cpp-Apache-2.0.txt",
+          "size": 11542,
+          "sha256": "7fccb6cfc60816725c6f93b895fac94d6915ce33ae1971da78f4cc5d5fdeb5d9",
+          "chunks": [
+            {
+              "name": "Qwen3-cpp-Apache-2.0.txt.chunk000",
+              "offset": 0,
+              "size": 11542,
+              "sha256": "7fccb6cfc60816725c6f93b895fac94d6915ce33ae1971da78f4cc5d5fdeb5d9",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/Qwen3-cpp-Apache-2.0.txt.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/Qwen3-cpp-Apache-2.0.txt.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libcublas.so.13",
+          "size": 54177976,
+          "sha256": "e70f38efabe986acd5eb683497c62f0f1730a6176ee291d9d24c6e339d1fbf86",
+          "chunks": [
+            {
+              "name": "libcublas.so.13.chunk000",
+              "offset": 0,
+              "size": 54177976,
+              "sha256": "e70f38efabe986acd5eb683497c62f0f1730a6176ee291d9d24c6e339d1fbf86",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublas.so.13.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublas.so.13.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libcublasLt.so.13",
+          "size": 541595600,
+          "sha256": "656298c804f5adbb0df930545c17911b9584ab4e5101c0eeb65d1fe881d880f8",
+          "chunks": [
+            {
+              "name": "libcublasLt.so.13.chunk000",
+              "offset": 0,
+              "size": 268435456,
+              "sha256": "c6b17af38521ec7bb8ee46b3c3c6c767829227caa9ff34d7485f394a6f26770c",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublasLt.so.13.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublasLt.so.13.chunk000",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "libcublasLt.so.13.chunk001",
+              "offset": 268435456,
+              "size": 268435456,
+              "sha256": "8d56742fd42ecf08d8b6757b846267a424388611618241fd166edc075efcb5e3",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublasLt.so.13.chunk001",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublasLt.so.13.chunk001",
+                  "enabled": true
+                }
+              ]
+            },
+            {
+              "name": "libcublasLt.so.13.chunk002",
+              "offset": 536870912,
+              "size": 4724688,
+              "sha256": "b78c71ecd9b8aefcd142dd75ff3fc0603cb57ad076260d7978426ec47f0c74c4",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublasLt.so.13.chunk002",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcublasLt.so.13.chunk002",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libcudart.so.13",
+          "size": 704288,
+          "sha256": "96c42e418cec19054186b9429c321603cc190bf26a18104e19408117a2a817b0",
+          "chunks": [
+            {
+              "name": "libcudart.so.13.chunk000",
+              "offset": 0,
+              "size": 704288,
+              "sha256": "96c42e418cec19054186b9429c321603cc190bf26a18104e19408117a2a817b0",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcudart.so.13.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libcudart.so.13.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libggml-base.so.0",
+          "size": 799505,
+          "sha256": "08eb828ee8d10c65085f2b076dc3d9c1065112315c0b65df6552915433cb9273",
+          "chunks": [
+            {
+              "name": "libggml-base.so.0.chunk000",
+              "offset": 0,
+              "size": 799505,
+              "sha256": "08eb828ee8d10c65085f2b076dc3d9c1065112315c0b65df6552915433cb9273",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml-base.so.0.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml-base.so.0.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libggml-cpu.so.0",
+          "size": 900424,
+          "sha256": "22197adfe65d606c62cc1c587b29c778a04aa3bbd6cd7acc9f67edf37a33f319",
+          "chunks": [
+            {
+              "name": "libggml-cpu.so.0.chunk000",
+              "offset": 0,
+              "size": 900424,
+              "sha256": "22197adfe65d606c62cc1c587b29c778a04aa3bbd6cd7acc9f67edf37a33f319",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml-cpu.so.0.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml-cpu.so.0.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libggml-cuda.so.0",
+          "size": 134394088,
+          "sha256": "18cdd985f13f7f350df3673df3384c55dfd18426c7f2c856bcd245a2d30bed8c",
+          "chunks": [
+            {
+              "name": "libggml-cuda.so.0.chunk000",
+              "offset": 0,
+              "size": 134394088,
+              "sha256": "18cdd985f13f7f350df3673df3384c55dfd18426c7f2c856bcd245a2d30bed8c",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml-cuda.so.0.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml-cuda.so.0.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "libggml.so.0",
+          "size": 55208,
+          "sha256": "77ccfbe23a9d416945bca06ac31fc9bc89745e24f5aa5da1e684b1ef07ab5402",
+          "chunks": [
+            {
+              "name": "libggml.so.0.chunk000",
+              "offset": 0,
+              "size": 55208,
+              "sha256": "77ccfbe23a9d416945bca06ac31fc9bc89745e24f5aa5da1e684b1ef07ab5402",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml.so.0.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/libggml.so.0.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "nv-worker",
+          "size": 938856,
+          "sha256": "62a810c66f81ee219bd47a4b913ece75316d3479cbaa9288c876178ffbf4a623",
+          "chunks": [
+            {
+              "name": "nv-worker.chunk000",
+              "offset": 0,
+              "size": 938856,
+              "sha256": "62a810c66f81ee219bd47a4b913ece75316d3479cbaa9288c876178ffbf4a623",
+              "sources": [
+                {
+                  "id": "huggingface",
+                  "url": "https://huggingface.co/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/nv-worker.chunk000",
+                  "enabled": true
+                },
+                {
+                  "id": "hf-mirror",
+                  "url": "https://hf-mirror.com/Inubashiri0817/moyu-voice-cuda/resolve/8227406cbdd53e8c8d0742452eb580a232bf697d/nv-worker.chunk000",
+                  "enabled": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

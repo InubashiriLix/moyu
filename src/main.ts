@@ -7,6 +7,7 @@ import { VimKeys, type KeyAction } from './keys';
 import { parseCommand, type PanelName } from './commands';
 import { Reader } from './reader';
 import { VoiceUI } from './voice-ui';
+import { ModelsUI } from './model-ui';
 import { setVoicePlatform, voiceTransport } from './voice-transport';
 import { defaults, type Book, type Bootstrap, type Position, type Preferences } from './types';
 
@@ -81,7 +82,11 @@ function toast(message: unknown, sticky = false) {
 }
 function fail(error: unknown) { toast(error, true); }
 const voice = new VoiceUI(app.querySelector<HTMLElement>('.window')!, reader, {
-  book: () => book, ready: () => !busy, preferences: () => prefs, persist: persistPreferences, fail, changed: syncVoiceControls,
+  book: () => book, ready: () => !busy, preferences: () => prefs, persist: persistPreferences, fail,
+  changed: () => { syncVoiceControls(); models.onVoiceStatus(); },
+});
+const models = new ModelsUI({
+  preferences: () => prefs, persist: persistPreferences, fail, voiceStatus: () => voice.status,
 });
 
 function applyAppearance() {
@@ -144,7 +149,8 @@ function renderPanel() {
   if (panel) voice.closeOverlays();
   panelElement.hidden = panel === null;
   panelElement.classList.toggle('search-panel', panel === 'search');
-  if (!panel) { panelElement.replaceChildren(); viewport.focus({ preventScroll: true }); return; }
+  if (!panel) { panelElement.replaceChildren(); models.detach(); viewport.focus({ preventScroll: true }); return; }
+  models.detach();
   switch (panel) {
     case 'settings':
       panelElement.innerHTML = `${panelHeader('阅读设置')}<div class="panel-body">
@@ -154,6 +160,7 @@ function renderPanel() {
         <label class="toggle-setting"><span>自动语气</span><input name="voiceAutomatic" type="checkbox"${prefs.voiceAutomatic ? ' checked' : ''}></label>
         <div class="voice-actions"><button data-action="voice-read"${!voiceTransport.available || !book ? ' disabled' : ''}>从当前段开始 <kbd>gr</kbd></button><button data-action="voice-toggle"${!voice.active ? ' disabled' : ''}>暂停／继续 <kbd>gp</kbd></button><button data-action="voice-stop"${!voice.active ? ' disabled' : ''}>停止 <kbd>gs</kbd></button></div>
         <p class="note">正文中：gv 打开声音设置，gf 选女声，gm 选男声。声音与语气在下次开始时生效；设置内 j/k 选择、h/l 调节。</p>
+        <div class="model-settings" data-model-settings></div>
         <div class="divider"></div>
         <label class="setting"><span>阅读字体</span><select name="fontFamily">${[['jetbrains', 'JetBrainsMono Nerd Font Mono'], ['systemMono', '系统等宽'], ['serif', '宋体 / 衬线']].map(([value, title]) => `<option value="${value}"${value === prefs.fontFamily ? ' selected' : ''}>${title}</option>`).join('')}</select></label>
         <label class="toggle-setting"><span>隐藏顶部栏</span><input type="checkbox" name="hideToolbar"${prefs.hideToolbar ? ' checked' : ''}></label>
@@ -169,6 +176,7 @@ function renderPanel() {
         <div class="divider"></div><div class="action-row"><button class="secondary" data-action="help">键位帮助</button><button class="text-button" data-action="quit">退出应用</button></div>
         ${!bridge.native ? '<p class="note preview-note">浏览器预览 · 窗口透明、隐藏与全局快捷键请在桌面应用中体验。</p>' : ''}
       </div>`;
+      models.attach(panelElement.querySelector<HTMLElement>('[data-model-settings]'));
       break;
     case 'library':
       panelElement.innerHTML = `${panelHeader('打开小说')}<div class="panel-body">${encodingSelect()}<button class="primary wide" data-action="open">选择 TXT / EPUB</button>${book && book.encoding !== 'EPUB' ? '<button class="text-button" data-action="reopen">用所选编码重新打开当前书</button>' : ''}${!bridge.native ? '<button class="text-button" data-action="sample">打开阅读示例</button>' : ''}<p class="section-label">最近阅读</p>${filterRow()}<div class="panel-list">${recentItems()}</div></div>`;
@@ -474,7 +482,7 @@ async function action(name: string) {
     case 'close': panel = null; renderPanel(); break;
     case 'hide': await saveCurrentProgress(); await bridge.hideWindow(); break;
     case 'quit': await saveCurrentProgress(); await persistPreferences(); await bridge.quit(); break;
-    case 'reset': prefs = { ...defaults, shortcut: prefs.shortcut, alwaysOnTop: prefs.alwaysOnTop, voiceEngineDir: prefs.voiceEngineDir, voiceModelsDir: prefs.voiceModelsDir, voiceSpeaker: prefs.voiceSpeaker, voiceAutomatic: prefs.voiceAutomatic }; settingsChanged(); renderPanel(); break;
+    case 'reset': prefs = { ...defaults, shortcut: prefs.shortcut, alwaysOnTop: prefs.alwaysOnTop, voiceEngineDir: prefs.voiceEngineDir, voiceModelsDir: prefs.voiceModelsDir, voiceSpeaker: prefs.voiceSpeaker, voiceAutomatic: prefs.voiceAutomatic, voiceBackend: prefs.voiceBackend, voicePowerMode: prefs.voicePowerMode, voiceModelId: prefs.voiceModelId }; settingsChanged(); renderPanel(); break;
     case 'reopen': if (book) await openPath(book.path); break;
     case 'sample': await adopt(await bridge.sampleBook()); break;
     case 'next': nextMatch(1); break;

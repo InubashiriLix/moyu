@@ -10,3 +10,5 @@
 依赖许可证保留在下载目录内。运行时不调用云端模型或 DeepSeek。
 
 - `patches/cuda-device-compatibility.patch` 在 GGML 中加入部署检查探针，使用与计算内核相同的编译目标，在模型加载前检验 CUDA 内核可用性。
+
+- `patches/backend-selection.patch` 固定 CPU/CUDA/Vulkan 设备选择，限制主后端与 CPU 回退线程数，移除宿主 `-march=native` 编译选项，并将上游 CUDA 专用调用限于 CUDA 构建。

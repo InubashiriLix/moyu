@@ -4,9 +4,10 @@
 #include <thread>
 #include <vector>
 #include <cstdlib>
-int main(){
+int main(int argc,char** argv){
  if(const char* delay=std::getenv("NV_FAKE_LOAD_MS"))std::this_thread::sleep_for(std::chrono::milliseconds(std::atoi(delay)));
  int fd=3;
+ if(const char* rejected=std::getenv("NV_FAKE_REJECT_BACKEND"))if(argc>4&&std::string(argv[4])==rejected){nv::ipc::text(fd,nv::ipc::error,"intentional unsupported backend");return 1;}
  if(const char* error=std::getenv("NV_FAKE_START_ERROR")){nv::ipc::text(fd,nv::ipc::error,error);return 1;}
  if(!nv::ipc::message(fd,nv::ipc::ready))return 1;
  for(;;){

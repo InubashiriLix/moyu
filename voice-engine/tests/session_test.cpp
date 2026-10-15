@@ -46,6 +46,19 @@ int main(){
     std::this_thread::sleep_for(1400ms);CHECK(nv_get_state(s.get())==NV_PAUSED);CHECK(samples.count==0);
     nv_resume(s.get());CHECK(nv_wait(s.get())==NV_COMPLETED);CHECK(samples.count==48000);
     unsetenv("NV_FAKE_LOAD_MS");
+    s.reset();samples.count=0;
+    auto backends=dir/"backends";
+    auto fake=std::filesystem::canonical("/proc/self/exe").parent_path()/"nv-worker";
+    for(auto backend:{"cuda","cpu"}){std::filesystem::create_directories(backends/backend);std::filesystem::create_symlink(fake,backends/backend/"nv-worker");}
+    setenv("NV_FAKE_REJECT_BACKEND","cuda",1);
+    s.reset(nv_create(&c,pcm,nullptr,nullptr,&samples));
+    auto backend_path=backends.string();nv_runtime_options runtime{sizeof(nv_runtime_options),1,0,0,backend_path.c_str()};
+    CHECK(nv_set_runtime_options(s.get(),&runtime));r.text="无 GPU 时回退。";
+    CHECK(nv_submit(s.get(),&r));std::this_thread::sleep_for(100ms);CHECK(samples.count==0);
+    CHECK(nv_wait(s.get())==NV_COMPLETED);CHECK(samples.count==48000);
+    char info[4096];CHECK(nv_get_runtime_info_json(s.get(),info,sizeof(info))<sizeof(info));
+    CHECK(std::string(info).find("\"effectiveBackend\":\"cpu\"")!=std::string::npos);
+    CHECK(std::string(info).find("unsupported backend")!=std::string::npos);unsetenv("NV_FAKE_REJECT_BACKEND");
     s.reset();std::filesystem::remove_all(dir);std::cout<<"session checks passed\n";return 0;
  }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}
 }

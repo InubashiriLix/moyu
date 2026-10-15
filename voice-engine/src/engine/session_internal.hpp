@@ -11,6 +11,8 @@
 struct nv_session {
     std::string models,model,speaker,cache_dir,output,error;
     nv_config config{};
+    bool runtime_configured=false,eco=false; std::string backend="auto",backends_dir;
+    int requested_threads=2,requested_idle=60;
     nv_pcm_callback pcm=nullptr;nv_progress_callback progress=nullptr;nv_error_callback on_error=nullptr;void* user=nullptr;
     std::unique_ptr<nv::Worker> worker;
     std::unique_ptr<nv::Playback> playback;

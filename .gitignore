@@ -11,6 +11,8 @@ releases/
 .package-tools/
 
 __pycache__/
+**/.cargo/registry/
+src-tauri/src/models/.cargo/
 voice-engine/vendor/
 voice-engine/build*/
 voice-engine/models/

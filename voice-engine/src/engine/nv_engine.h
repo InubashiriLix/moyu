@@ -23,6 +23,12 @@ typedef struct nv_playback_position {
     int sample_rate,valid,buffering;
 } nv_playback_position;
 int nv_engine_abi_version(void);
+/* Additive ABI: configure only while stopped. backend: auto=0,cpu=1,cuda=2,vulkan=3;
+   power_mode: eco=0,balanced=1. struct_size/version permit future extension. */
+typedef struct nv_runtime_options { uint32_t struct_size,version; int backend,power_mode; const char* backends_dir; } nv_runtime_options;
+int nv_set_runtime_options(nv_session*,const nv_runtime_options*);
+/* Returns required bytes including NUL; copies only when capacity is sufficient. */
+size_t nv_get_runtime_info_json(nv_session*,char*,size_t);
 nv_playback_position nv_get_playback_position(nv_session*);
 typedef struct nv_metrics {
     double wall_seconds,first_pcm_seconds,load_seconds,synthesis_seconds,audio_seconds;

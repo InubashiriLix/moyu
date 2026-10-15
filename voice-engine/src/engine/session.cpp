@@ -4,9 +4,28 @@
 #include <filesystem>
 #include <stdexcept>
 #include <algorithm>
+#include <cstring>
+#include <sstream>
 using Clock=std::chrono::steady_clock;
 extern "C" {
 int nv_engine_abi_version(){return 1;}
+static std::string json_quote(const std::string& s){std::string r="\"";for(unsigned char c:s){if(c=='\\'||c=='\"'){r+='\\';r+=char(c);}else if(c=='\n')r+="\\n";else if(c=='\r')r+="\\r";else if(c=='\t')r+="\\t";else if(c<32)r+=' ';else r+=char(c);}return r+"\"";}
+int nv_set_runtime_options(nv_session* s,const nv_runtime_options* o){
+    if(!s||!o||o->version!=1||o->struct_size<sizeof(nv_runtime_options)||o->backend<0||o->backend>3||o->power_mode<0||o->power_mode>1)return 0;
+    std::lock_guard<std::mutex> lock(s->control);if(s->state==NV_RUNNING||s->state==NV_PAUSED)return 0;
+    static const char* names[]={"auto","cpu","cuda","vulkan"};
+    s->backend=names[o->backend];s->backends_dir=o->backends_dir?o->backends_dir:"";s->eco=o->power_mode==0;s->runtime_configured=true;
+    s->config.idle_seconds=s->eco?std::min(s->requested_idle,15):s->requested_idle;
+    s->config.threads=s->eco?std::min(s->requested_threads,2):s->requested_threads;
+    s->worker=std::make_unique<nv::Worker>(s->models,s->model,s->config.threads,s->backend,s->backends_dir,s->eco,&s->cancelled);return 1;
+}
+size_t nv_get_runtime_info_json(nv_session* s,char* out,size_t capacity){
+    if(!s)return 0;std::lock_guard<std::mutex> lock(s->control);
+    auto b=s->worker?s->worker->backend():"";auto d=s->worker?s->worker->device():"";auto reason=s->worker?s->worker->fallback_reason():"";
+    auto value=std::string("{\"effectiveBackend\":")+json_quote(b)+",\"device\":"+json_quote(d)+",\"fallbackReason\":"+json_quote(reason)+",\"powerMode\":"+json_quote(s->eco?"eco":"balanced")+"}";
+    if(out&&capacity>value.size())std::memcpy(out,value.c_str(),value.size()+1);return value.size()+1;
+}
+
 nv_playback_position nv_get_playback_position(nv_session* s){
     nv_playback_position p{};p.sample_rate=24000;
     if(!s)return p;
@@ -33,13 +52,13 @@ nv_session* nv_create(const nv_config* supplied,nv_pcm_callback pcm,nv_progress_
         if(c.threads<1||c.threads>8||c.seed<0||c.idle_seconds<1||!std::isfinite(c.preroll_seconds)||!std::isfinite(c.max_buffer_seconds)||
            c.preroll_seconds<=0||c.max_buffer_seconds<c.preroll_seconds||c.max_buffer_seconds>30)
             throw std::invalid_argument("invalid thread, idle, or audio buffer configuration");
-        s=std::make_unique<nv_session>();s->config=c;
+        s=std::make_unique<nv_session>();s->config=c;s->requested_threads=c.threads;s->requested_idle=c.idle_seconds;
         s->models=c.models_dir?c.models_dir:"models/gguf";s->model=c.model?c.model:"qwen3-tts-1.7b-customvoice-f16";
         s->speaker=c.speaker?c.speaker:"Uncle_Fu";s->output=c.output_wav?c.output_wav:"";
         if(c.cache_dir)s->cache_dir=c.cache_dir;
         else {const char* x=getenv("XDG_CACHE_HOME"),* h=getenv("HOME");s->cache_dir=std::string(x?x:h?h:".")+(x?"/novel-voice":"/.cache/novel-voice");}
         s->pcm=pcm;s->progress=progress;s->on_error=err;s->user=user;
-        s->worker=std::make_unique<nv::Worker>(s->models,s->model,c.threads);
+        s->worker=std::make_unique<nv::Worker>(s->models,s->model,c.threads,"auto","",false,&s->cancelled);
         auto* p=s.get();s->timer=std::thread([p]{
             while(!p->closing){
                 std::unique_lock<std::mutex> l(p->mutex);p->cv.wait_for(l,std::chrono::milliseconds(200));

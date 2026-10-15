@@ -58,6 +58,7 @@ type Create = unsafe extern "C" fn(
     *mut c_void,
 ) -> Session;
 
+type EngineIdentity = (String, String, String, String, String, String);
 struct Engine {
     session: Session,
     submit: unsafe extern "C" fn(Session, *const Request) -> c_int,
@@ -70,8 +71,17 @@ struct Engine {
     error: unsafe extern "C" fn(Session) -> *const c_char,
     destroy: unsafe extern "C" fn(Session),
     metrics: unsafe extern "C" fn(Session) -> Metrics,
+    runtime_info: unsafe extern "C" fn(Session, *mut c_char, usize) -> usize,
     _library: Library,
-    identity: (String, String),
+    identity: EngineIdentity,
+}
+#[repr(C)]
+struct RuntimeOptions {
+    struct_size: u32,
+    version: u32,
+    backend: c_int,
+    power_mode: c_int,
+    backends_dir: *const c_char,
 }
 #[repr(C)]
 #[derive(Default, Serialize)]
@@ -88,6 +98,12 @@ struct Metrics {
     cancelled: c_int,
 }
 static BUNDLE: OnceLock<PathBuf> = OnceLock::new();
+static MODELS: OnceLock<crate::models::ModelManager> = OnceLock::new();
+static DATA: OnceLock<PathBuf> = OnceLock::new();
+pub fn set_models(manager: crate::models::ModelManager, root: PathBuf) {
+    let _ = MODELS.set(manager);
+    let _ = DATA.set(root);
+}
 pub fn set_bundle(root: PathBuf) {
     let _ = BUNDLE.set(root.join("voice"));
 }
@@ -129,20 +145,138 @@ fn directory(explicit: &str, env: &str, development: &str, suffix: &str) -> Path
     data.join("novel-voice").join(suffix)
 }
 fn paths(p: &Preferences) -> (PathBuf, PathBuf) {
+    let installed = MODELS
+        .get()
+        .and_then(|manager| manager.installed_path(&p.voice_model_id))
+        .or_else(|| {
+            let root = DATA.get()?;
+            let catalog: crate::models::schema::Catalog =
+                serde_json::from_str(include_str!("../model-catalog.json")).ok()?;
+            let entry = catalog.entries.iter().find(|e| e.id == p.voice_model_id)?;
+            let path = root.join("installed").join(&entry.id).join(&entry.revision);
+            if path.join(".installed.json").is_file() {
+                Some(path)
+            } else {
+                None
+            }
+        });
+    let managed = if p.voice_models_dir.trim().is_empty()
+        && std::env::var_os("MOYU_NV_MODELS_DIR").is_none()
+    {
+        installed
+    } else {
+        None
+    };
     (
         directory(
             &p.voice_engine_dir,
             "MOYU_NV_ENGINE_DIR",
-            "../../novel-voice/build/bin",
+            "../voice-engine/build-cpu/bin",
             "runtime",
         ),
-        directory(
-            &p.voice_models_dir,
-            "MOYU_NV_MODELS_DIR",
-            "../../novel-voice/models/gguf",
-            "models/gguf",
-        ),
+        managed.unwrap_or_else(|| {
+            directory(
+                &p.voice_models_dir,
+                "MOYU_NV_MODELS_DIR",
+                "../../novel-voice/models/gguf",
+                "models/gguf",
+            )
+        }),
     )
+}
+fn identity(p: &Preferences) -> EngineIdentity {
+    let (runtime, models) = paths(p);
+    (
+        runtime.to_string_lossy().into_owned(),
+        models.to_string_lossy().into_owned(),
+        p.voice_backend.clone(),
+        p.voice_power_mode.clone(),
+        p.voice_model_id.clone(),
+        MODELS
+            .get()
+            .and_then(|m| m.installed_path("cuda-linux-x86_64-abi1"))
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+    )
+}
+fn backend_root() -> PathBuf {
+    let root = DATA
+        .get()
+        .map(|p| p.join("active-backends"))
+        .unwrap_or_default();
+    #[cfg(unix)]
+    if let Some(component) = MODELS
+        .get()
+        .and_then(|m| m.installed_path("cuda-linux-x86_64-abi1"))
+    {
+        if std::fs::create_dir_all(&root).is_ok() {
+            let link = root.join("cuda");
+            if std::fs::read_link(&link).ok().as_ref() != Some(&component) {
+                let next = root.join("cuda.next");
+                let _ = std::fs::remove_file(&next);
+                if std::os::unix::fs::symlink(component, &next).is_ok() {
+                    let _ = std::fs::rename(next, link);
+                }
+            }
+        }
+    } else if MODELS.get().is_some() {
+        let link = root.join("cuda");
+        if std::fs::symlink_metadata(&link).is_ok_and(|m| m.file_type().is_symlink()) {
+            let _ = std::fs::remove_file(link);
+        }
+    }
+    root
+}
+
+#[tauri::command]
+pub async fn voice_devices(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let p = app
+        .state::<Store>()
+        .saved
+        .lock()
+        .map_err(|e| e.to_string())?
+        .preferences
+        .clone();
+    tauri::async_runtime::spawn_blocking(move||{
+        let (runtime,_)=paths(&p);
+        let root=backend_root();
+        let mut results=Vec::new();
+        for (id,label) in [("cuda","NVIDIA CUDA"),("vulkan","Vulkan"),("cpu","CPU")] {
+            let mut binary=[root.join(id).join("nv-worker"),runtime.join("backends").join(id).join("nv-worker")].into_iter().find(|p|p.is_file());
+            if binary.is_none()&&id=="cpu"&&runtime.join("nv-worker").is_file(){binary=Some(runtime.join("nv-worker"));}
+            let mut row=serde_json::json!({"id":id,"label":label,"available":false,"reason":"后端未安装"});
+            if let Some(binary)=binary {
+                if let Ok(mut child)=std::process::Command::new(binary).arg("--probe").stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::null()).spawn(){
+                    let deadline=std::time::Instant::now()+Duration::from_secs(5);
+                    loop {
+                        match child.try_wait(){
+                            Ok(Some(exit))=>{
+                                if exit.success(){
+                                    if let Ok(output)=child.wait_with_output(){
+                                        if let Ok(value)=serde_json::from_slice::<serde_json::Value>(&output.stdout){
+                                            row["available"]=serde_json::json!(value["available"].as_bool().unwrap_or(false));
+                                            row["device"]=value["device"].clone();
+                                            row["reason"]=if row["available"]==true {serde_json::Value::Null}else{serde_json::json!("设备不支持此后端")};
+                                        }
+                                    }
+                                }else{row["reason"]=serde_json::json!("未检测到兼容设备或驱动");}
+                                break;
+                            },
+                            _ if std::time::Instant::now()>=deadline=>{let _=child.kill();let _=child.wait();row["reason"]=serde_json::json!("设备检测超时");break;},
+                            Err(_)=>{let _=child.kill();let _=child.wait();break;},
+                            _=>thread::sleep(Duration::from_millis(20)),
+                        }
+                    }
+                }
+            }
+            results.push(row);
+        }
+        let nvidia=results.iter().any(|row|row["id"]=="vulkan"&&row["available"]==true&&row["device"].as_str().is_some_and(|s|s.contains("RTX")||s.contains("GTX 16")));
+        if let Some(cuda)=results.iter_mut().find(|row|row["id"]=="cuda"){
+            cuda["downloadRecommended"]=serde_json::json!(nvidia&&cuda["reason"]=="后端未安装");
+        }
+        serde_json::json!({"backends":results})
+    }).await.map_err(|e|e.to_string())
 }
 impl Engine {
     fn load(p: &Preferences) -> Result<Self, String> {
@@ -150,22 +284,28 @@ impl Engine {
     }
     fn load_with_playback(p: &Preferences, playback: bool) -> Result<Self, String> {
         if !cfg!(target_os = "linux") {
-            return Err("本版朗读需要 Linux 和 NVIDIA CUDA，阅读功能仍可使用。".into());
+            return Err("本版朗读需要 Linux，阅读功能仍可使用。".into());
         }
         let (runtime, models) = paths(p);
-        if !runtime.join("nv-worker").is_file() {
+        if !runtime.join("nv-worker").is_file() && !runtime.join("backends/cpu/nv-worker").is_file()
+        {
             return Err("找不到朗读工作程序，请在朗读设置中选择引擎目录。".into());
         }
         for file in [
-            "qwen3-tts-1.7b-customvoice-f16.gguf",
+            &format!("{}.gguf", p.voice_model_id),
             "qwen3-tts-tokenizer-f16.gguf",
         ] {
             if !models.join(file).is_file() {
-                return Err(format!("缺少模型 {file}，请在朗读设置中选择模型目录。"));
+                return Err(format!(
+                    "缺少模型 {file}，请按 s 打开设置，下载或导入朗读模型。"
+                ));
             }
         }
         let path = CString::new(models.to_string_lossy().as_bytes())
             .map_err(|_| "模型路径含无效字符。")?;
+        let model = CString::new(p.voice_model_id.as_str()).map_err(|_| "模型名称无效")?;
+        let backends = CString::new(backend_root().to_string_lossy().as_bytes())
+            .map_err(|_| "后端路径无效")?;
         unsafe {
             let library = Library::new(runtime.join("libnovel_voice.so"))
                 .map_err(|e| format!("无法加载朗读引擎，请检查引擎目录及依赖：{e}"))?;
@@ -179,6 +319,12 @@ impl Engine {
             let create: Create = symbol(&library, b"nv_create\0")?;
             let mut config = defaults();
             config.models = path.as_ptr();
+            config.model = model.as_ptr();
+            config.threads = if p.voice_power_mode == "balanced" {
+                4
+            } else {
+                2
+            };
             config.playback = playback as c_int;
             if !playback {
                 config.cache_enabled = 0;
@@ -193,9 +339,33 @@ impl Engine {
             let error = symbol(&library, b"nv_last_error\0")?;
             let destroy = symbol(&library, b"nv_destroy\0")?;
             let metrics = symbol(&library, b"nv_get_metrics\0")?;
+            let configure: unsafe extern "C" fn(Session, *const RuntimeOptions) -> c_int =
+                symbol(&library, b"nv_set_runtime_options\0")?;
+            let runtime_info = symbol(&library, b"nv_get_runtime_info_json\0")?;
             let session = create(&config, None, None, None, std::ptr::null_mut());
             if session.is_null() {
                 return Err("无法创建朗读会话。".into());
+            }
+            let options = RuntimeOptions {
+                struct_size: std::mem::size_of::<RuntimeOptions>() as u32,
+                version: 1,
+                backend: match p.voice_backend.as_str() {
+                    "cpu" => 1,
+                    "cuda" => 2,
+                    "vulkan" => 3,
+                    _ => 0,
+                },
+                power_mode: if p.voice_power_mode == "balanced" {
+                    1
+                } else {
+                    0
+                },
+                backends_dir: backends.as_ptr(),
+            };
+            if configure(session, &options) == 0 {
+                let destroy: unsafe extern "C" fn(Session) = destroy;
+                destroy(session);
+                return Err("无法配置朗读后端".into());
             }
             Ok(Self {
                 session,
@@ -209,10 +379,8 @@ impl Engine {
                 error,
                 destroy,
                 metrics,
-                identity: (
-                    runtime.to_string_lossy().into(),
-                    models.to_string_lossy().into(),
-                ),
+                runtime_info,
+                identity: identity(p),
                 _library: library,
             })
         }
@@ -253,11 +421,31 @@ impl Engine {
 /// Headless release verification: no GTK, window, audio device or downloads.
 pub fn bundle_check(resource_root: PathBuf, smoke: bool) -> Result<serde_json::Value, String> {
     set_bundle(resource_root);
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local/share")
+        });
+    let _ = DATA.set(data.join("app.moyu.reader/voice"));
     let p = Preferences::default();
     let (runtime, models) = paths(&p);
+    if !smoke {
+        let library = unsafe { Library::new(runtime.join("libnovel_voice.so")) }
+            .map_err(|e| format!("无法加载朗读引擎：{e}"))?;
+        let abi: unsafe extern "C" fn() -> c_int =
+            unsafe { symbol(&library, b"nv_engine_abi_version\0")? };
+        let ready = [
+            format!("{}.gguf", p.voice_model_id),
+            "qwen3-tts-tokenizer-f16.gguf".into(),
+        ]
+        .iter()
+        .all(|f| models.join(f).is_file());
+        return Ok(
+            serde_json::json!({"runtime":runtime,"models":models,"abiVersion":unsafe{abi()},"localModelsReady":ready,"audioPlayback":false,"networkUsed":false}),
+        );
+    }
     let engine = Engine::load_with_playback(&p, false)?;
-    let mut result =
-        serde_json::json!({"runtime":runtime,"models":models,"abiVersion":1,"offline":true});
+    let mut result = serde_json::json!({"runtime":runtime,"models":models,"abiVersion":1,"offline":true,"audioPlayback":false});
     if smoke {
         engine.start("清晨的雨停了。她轻声说：“我们出发吧。”", "", &p)?;
         let state = unsafe { (engine.wait)(engine.session) };
@@ -273,6 +461,13 @@ pub fn bundle_check(resource_root: PathBuf, smoke: bool) -> Result<serde_json::V
             return Err("引擎未生成有效音频。".into());
         }
         result["metrics"] = serde_json::to_value(metrics).map_err(|e| e.to_string())?;
+        let mut info = vec![0u8; 4096];
+        let size =
+            unsafe { (engine.runtime_info)(engine.session, info.as_mut_ptr().cast(), info.len()) };
+        if size > 0 && size <= info.len() {
+            result["backend"] =
+                serde_json::from_slice(&info[..size - 1]).map_err(|e| e.to_string())?;
+        }
     }
     Ok(result)
 }
@@ -288,6 +483,9 @@ pub struct VoiceStatus {
     pub paragraph_end: Option<usize>,
     pub offset: Option<usize>,
     pub error: Option<String>,
+    pub effective_backend: Option<String>,
+    pub device: Option<String>,
+    pub fallback_reason: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -443,11 +641,7 @@ fn run(receiver: mpsc::Receiver<Message>, emit: impl Fn(&VoiceStatus)) {
                             let row = selected(&rows, request.position.offset)
                                 .ok_or("本章没有可朗读的正文。")?;
                             origin = row.byte_start;
-                            let (runtime, models) = paths(&p);
-                            let identity = (
-                                runtime.to_string_lossy().into_owned(),
-                                models.to_string_lossy().into_owned(),
-                            );
+                            let identity = identity(&p);
                             if engine.as_ref().is_some_and(|e| e.identity != identity) {
                                 engine = None;
                             }
@@ -539,6 +733,24 @@ fn update(
         return;
     };
     unsafe {
+        let mut info = vec![0u8; 4096];
+        let size = (e.runtime_info)(e.session, info.as_mut_ptr().cast(), info.len());
+        if size > 0 && size <= info.len() {
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&info[..size - 1]) {
+                status.effective_backend = value["effectiveBackend"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned);
+                status.device = value["device"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned);
+                status.fallback_reason = value["fallbackReason"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned);
+            }
+        }
         let state = (e.state)(e.session);
         let p = (e.position)(e.session);
         status.phase = match state {
@@ -692,14 +904,14 @@ mod tests {
         thread.join().unwrap();
     }
     #[test]
-    #[ignore = "requires the real local CUDA engine, models and an audio device"]
+    #[ignore = "requires a real engine, models and a private audio sink"]
     fn real_engine_ffi_playback_and_actor() {
         let preferences = Preferences::default();
         {
             let engine = Engine::load(&preferences).unwrap();
             let text = "夜里，窗外的雨停了。\n她轻声说：“我们走吧。”";
             engine.start(text, "", &preferences).unwrap();
-            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            let deadline = std::time::Instant::now() + Duration::from_secs(120);
             unsafe {
                 assert_eq!((engine.position)(engine.session).consumed, 0);
                 while (engine.position)(engine.session).valid == 0 {
@@ -764,7 +976,7 @@ mod tests {
             },
         };
         send(&sender, Action::Start(request, preferences)).unwrap();
-        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        let deadline = std::time::Instant::now() + Duration::from_secs(120);
         let mut observed = false;
         loop {
             let status = send(&sender, Action::Status).unwrap();

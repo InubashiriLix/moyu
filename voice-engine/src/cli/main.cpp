@@ -14,10 +14,12 @@ volatile sig_atomic_t interrupted=0;
 void signal_handler(int){interrupted=1;}
 void write_metrics(nv_session* s,const std::string& path){
  if(path.empty())return;auto m=nv_get_metrics(s);std::ofstream f(path+".tmp");
+ char runtime[4096]{};auto bytes=nv_get_runtime_info_json(s,runtime,sizeof(runtime));
  f<<"{\"wall_seconds\":"<<m.wall_seconds<<",\"first_pcm_seconds\":"<<m.first_pcm_seconds
   <<",\"load_seconds\":"<<m.load_seconds<<",\"synthesis_seconds\":"<<m.synthesis_seconds
   <<",\"audio_seconds\":"<<m.audio_seconds<<",\"cache_hits\":"<<m.cache_hits
-  <<",\"underrun_samples\":"<<m.underrun_samples<<",\"cold_start\":"<<m.cold_start<<",\"cancelled\":"<<m.cancelled<<"}\n";
+  <<",\"underrun_samples\":"<<m.underrun_samples<<",\"cold_start\":"<<m.cold_start<<",\"cancelled\":"<<m.cancelled
+  <<",\"runtime\":"<<(bytes>0&&bytes<=sizeof(runtime)?runtime:"{}")<<"}\n";
  f.close();if(!f)throw std::runtime_error("cannot write metrics");std::filesystem::rename(path+".tmp",path);
 }
 std::string read_input(const std::map<std::string,std::string>& values){
@@ -31,7 +33,7 @@ int integer(const std::string& s){size_t p;auto v=std::stoi(s,&p);if(p!=s.size()
 }
 int main(int argc,char** argv){
  try{
-  const std::string valued=" --text --input --models-dir --model --speaker --instruction --output --cache-dir --idle-seconds --threads --seed --metrics ";
+  const std::string valued=" --text --input --models-dir --model --speaker --instruction --output --cache-dir --idle-seconds --threads --seed --metrics --backend --power-mode --backends-dir ";
   const std::string flags=" --no-play --no-cache --neutral --plan --session --help ";
   std::map<std::string,std::string> v;for(int i=1;i<argc;++i){std::string key=argv[i];
    if(v.count(key))throw std::runtime_error("duplicate option: "+key);
@@ -42,6 +44,7 @@ int main(int argc,char** argv){
    std::cout<<"novel-voice --text TEXT | --input UTF8.txt [--models-dir DIR] [--model STEM]\n"
     <<"  --speaker Uncle_Fu|Serena --instruction TEXT --neutral --plan\n"
     <<"  --output WAV --no-play --no-cache --cache-dir DIR --metrics JSON\n"
+    <<"  --backend auto|cpu|vulkan|cuda --power-mode eco|balanced --backends-dir DIR\n"
     <<"  --threads 1..8 --seed INTEGER --idle-seconds INTEGER --session\n"
     <<"Session commands: start, pause, resume, stop, status, wait, quit.\n";return 0;
   }
@@ -57,9 +60,16 @@ int main(int argc,char** argv){
   if(v.count("--cache-dir"))c.cache_dir=v["--cache-dir"].c_str();if(v.count("--output"))c.output_wav=v["--output"].c_str();
   c.playback=!v.count("--no-play");c.cache_enabled=!v.count("--no-cache");
   if(v.count("--threads"))c.threads=integer(v["--threads"]);if(v.count("--idle-seconds"))c.idle_seconds=integer(v["--idle-seconds"]);
+  if(!v.count("--threads")&&v.count("--power-mode")&&v["--power-mode"]=="balanced")c.threads=4;
   if(v.count("--seed")){size_t p;c.seed=std::stoll(v["--seed"],&p);if(p!=v["--seed"].size())throw std::runtime_error("invalid seed");}
   std::unique_ptr<nv_session,decltype(&nv_destroy)> session(nv_create(&c,nullptr,nullptr,[](const char* e,void*){std::cerr<<"error: "<<e<<'\n';},nullptr),nv_destroy);
   if(!session)throw std::runtime_error("cannot create session");auto* s=session.get();
+  auto backend=v.count("--backend")?v["--backend"]:"auto";
+  auto power=v.count("--power-mode")?v["--power-mode"]:"eco";
+  if(backend!="auto"&&backend!="cpu"&&backend!="cuda"&&backend!="vulkan")throw std::runtime_error("invalid backend");
+  if(power!="eco"&&power!="balanced")throw std::runtime_error("invalid power mode");
+  nv_runtime_options runtime{sizeof(nv_runtime_options),1,backend=="cpu"?1:backend=="cuda"?2:backend=="vulkan"?3:0,power=="balanced"?1:0,v.count("--backends-dir")?v["--backends-dir"].c_str():nullptr};
+  if(!nv_set_runtime_options(s,&runtime))throw std::runtime_error("cannot configure backend");
   nv_request r{};r.text=text.c_str();r.automatic=o.automatic;r.instruction=o.instruction_override.c_str();
   if(!nv_submit(s,&r))throw std::runtime_error("cannot submit text");
   std::signal(SIGINT,signal_handler);std::signal(SIGTERM,signal_handler);

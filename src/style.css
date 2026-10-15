@@ -147,3 +147,17 @@ code { font-size: 10px; font-family: ui-monospace, monospace; }
 
 .window[data-voice-phase='error'] .voice-phase { white-space: normal; overflow-wrap: anywhere; max-height: 72px; overflow-y: auto; }
 .window[data-voice-phase='error'] .reader, .window[data-voice-phase='error'] .panel { bottom: 84px; }
+
+.model-cards { display:grid; gap:10px; margin:10px 0; }
+.model-card { border:1px solid var(--border, #8885); border-radius:8px; padding:10px; overflow-wrap:anywhere; }
+.model-card-head,.model-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.model-card-head strong { flex:1 1 180px; font-size:12px; }
+.model-tag,.model-size,.model-status,.model-source,.model-path,.model-progress-text { font-size:11px; opacity:.8; }
+.model-tag { border:1px solid #8885; border-radius:4px; padding:1px 4px; }
+.model-status,.model-source,.model-error,.model-path { margin:6px 0; }
+.model-error { font-size:11px; color:#c95848; }
+.model-progress-track { display:block; height:4px; border-radius:4px; background:#8883; overflow:hidden; }
+.model-progress-bar { display:block; height:100%; background:currentColor; transition:width .2s; }
+.model-accel { font-size:11px; }
+.model-actions button { font-size:11px; }
+.model-settings [hidden] { display:none!important; }

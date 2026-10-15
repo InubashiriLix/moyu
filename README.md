@@ -60,7 +60,7 @@
 
 ## 本地朗读
 
-本版语音支持 Linux / NVIDIA CUDA，使用独立的 Novel Voice 原生引擎。点击顶部 ♪ 或“设置 → 朗读设置与控制”；浏览器预览及其他平台明确显示朗读不可用，普通阅读不受影响。
+本版语音支持 Linux x86_64，使用独立的 Rust / C++ 原生朗读引擎，自动选择 CUDA、Vulkan 或 CPU。点击顶部 ♪ 或“设置 → 朗读设置与控制”；浏览器预览及其他平台明确显示朗读不可用，普通阅读不受影响。
 
 `gr` 从屏幕顶部所在完整原文段落的段首开始，读到当前章末；正文右键菜单可以从指定段落开始。长段落即使拆成多个显示块，也不会从显示块中间起读。`gp` 原位暂停 / 继续，`gs` 清空待播放音频；再次 `gr` 按当前屏幕位置重新开始。Esc 关闭菜单和面板。
 
@@ -68,7 +68,7 @@
 
 默认男声 Uncle Fu，可选女声 Serena，自动语气开启。声音和语气在下一次开始时生效。模型按需加载，空闲或暂停 60 秒卸载；缓存复用及长暂停恢复由引擎负责。朗读期间底部控制栏保持可见，停止后恢复原本的安静阅读界面。
 
-在“引擎位置”中指定包含 `libnovel_voice.so` 与 `nv-worker` 的引擎目录，以及包含 F16 主模型和 tokenizer 的模型目录。也可设置 `MOYU_NV_ENGINE_DIR` / `MOYU_NV_MODELS_DIR`。开发构建会自动发现相邻的 `../novel-voice/build/bin` 和 `../novel-voice/models/gguf`；发布构建默认查找 `${XDG_DATA_HOME:-~/.local/share}/novel-voice/runtime` 与 `models/gguf`。引擎需要新版播放位置接口（ABI 1）；旧版会提示重新构建。Moyu 安装包不自动捆绑模型或 CUDA SDK；使用引擎现有构建目录时应保留其 GGML/CUDA 动态库依赖，不要只复制两个文件。
+在“引擎位置”中指定包含 `libnovel_voice.so` 与 `nv-worker` 的引擎目录，以及包含 F16 主模型和 tokenizer 的模型目录。也可设置 `MOYU_NV_ENGINE_DIR` / `MOYU_NV_MODELS_DIR`。开发构建使用 `voice-engine/build-cpu/bin`；模型可以本地导入或设置环境变量指定；发布构建默认查找 `${XDG_DATA_HOME:-~/.local/share}/novel-voice/runtime` 与 `models/gguf`。引擎需要新版播放位置接口（ABI 1）；旧版会提示重新构建。默认轻量安装包包含 CPU / Vulkan 引擎，模型和可选 CUDA 运行库通过设置下载；使用引擎现有构建目录时应保留其 GGML/CUDA 动态库依赖，不要只复制两个文件。
 
 ```sh
 # 当前工作区
@@ -163,16 +163,27 @@ CI 在 macOS 与 Ubuntu 上进行测试并生成平台安装包，但它不能�
 
 在 niri 上需手动完成：用 `niri validate` 检查配置；用 `niri msg windows` 确认 app-id 和浮动状态；打开 TXT / EPUB；调整文字与背景透明度；移动、缩放及修改字号；切换焦点后用快捷键隐藏 / 恢复；确认二次启动仍只有一个阅读窗口；退出后确认进度恢复；检查全屏 / 多工作区行为。浏览器回归和原生朗读接口测试不能代替 niri 桌面实际交互验收。
 
-## 完整离线朗读版 v0.3.0
+## 轻量朗读版 v0.4.0
 
-完整包包含 GGUF F16 模型、原生 C++/CUDA 引擎、CUDA 运行库和中文字体，运行不需要 Python、PyTorch、CUDA SDK 或模型下载。当前构建面向 Arch Linux x86_64，包含 `sm_89`（RTX 4060，包括 Laptop）及 `sm_120a`（RTX 5060）内核，需要兼容 CUDA 13 的 NVIDIA 驱动（580 系列或更新）。5060 已在本机验证，4060 Laptop 已由用户验证 GPU 生成及朗读播放。
+默认包包含原生 CPU / Vulkan 引擎，不包含模型权重和 CUDA 运行库。按 `s` 在设置里下载或导入模型；声音可选 Serena 女声或 Uncle Fu 男声，保留 `gr / gp / gs / gc / gv / gf / gm` 键位。运行时不需要 Python、PyTorch 或 CUDA SDK。`--voice-check` 检查引擎及本地模型状态，`--voice-smoke` 只做合成测试，不播放声音。
 
-运行 AppImage 打开小说，按 `gr` 开始、`gp` 暂停/继续、`gs` 停止、`gc` 回到朗读处；也可右键段落开始。`--voice-smoke` 执行包内 GPU 生成测试；没有 FUSE 时用 `--appimage-extract-and-run`。GPU 不兼容会在加载模型前明确报错。
+模型管理器使用固定清单中的大小与 SHA-256 校验文件及分块，同一文件顺序续传，下载源失败后自动切换。断网后每 30 秒重试，重新启动会恢复未暂停的任务；暂停状态会保留。取消下载清理暂存数据。全部文件通过校验后才在同一文件系统内原子安装，不执行归档解压。本地导入同样校验完整 SHA-256，不覆盖外部原文件。模型与可选 CUDA 加速组件分别安装，组件失败不影响已有模型。
 
-已有旧完整包可用 `Moyu_voice_engine_sm89_sm120a_update.tar.gz`，先用旧 AppImage 的 `--appimage-extract` 提取，再按更新包 README 运行 `update-engine.sh`，模型及 CUDA 库无需重传。更新后用提取目录的 `AppRun` 启动，原 AppImage 不变。新完整包的 GitHub 分卷与校验文件放同一目录，运行 `bash assemble-full.sh` 还原。
+安装位置为 `${XDG_DATA_HOME:-~/.local/share}/app.moyu.reader/voice/installed/<组件>/<修订>/`。设置仍支持自定义引擎与模型目录，环境变量 `MOYU_NV_ENGINE_DIR` / `MOYU_NV_MODELS_DIR` 优先于自动路径。旧离线模型可从原目录导入。
 
-引擎源码位于 `voice-engine/`，构建和模型准备方法见该目录 README。打包使用 `npm run package:full -- --engine /path/to/voice-engine`，需要已构建引擎及已准备模型、patchelf、noto-fonts-cjk、CUDA 和 Tauri 构建环境。Python 仅用于模型准备和开发打包工具。完整源码归档还包含固定版本后端源码及许可证。
+默认“节能”模式：CPU 合成 1 个线程，GPU 辅助计算 2 个线程，闲置或长暂停 15 秒卸载工作进程；均衡模式最多 4 个 CPU 线程、60 秒卸载。CPU 先生成完整句段到临时文件，再正常速播放，磁盘暂存最多约 64 MiB，音频环形缓冲保持有界。F16 模型在 CPU 上仍约需 4.2 GB 内存且可能远慢于实时；Q5_K 可减少模型体积，是实验性选项，不保证同等音质。
 
-声音可直接在 `s` 设置面板选择，顶部栏隐藏时也能访问。正文中 `gv` 打开并定位声音设置，`gf` 选择女声 Serena，`gm` 选择男声 Uncle Fu；切换保存后在下次 `gr` 生效。设置内可用 j/k 选择、h/l 调节。
+CPU 基线为 x86-64 SSE2，检测到 AVX2、FMA、F16C 时使用随包优化版本。Vulkan 需要系统 Vulkan 1.2 驱动；已在本机 RTX 5060 验证实际合成，AMD / Intel GPU 尚未实机验证。CUDA 组件包含多个架构内核及 PTX，但仍需要兼容 NVIDIA 驱动。自动模式下后端初始化失败会尝试下一后端；已输出音频后的错误会显示明确提示，不重播已播内容。本次 AppImage 在 Arch 构建，其他发行版兼容性尚未验证。
 
-已下载完整包的用户可使用 `Moyu_reader_settings_update.tar.gz` 更新阅读界面，复用原有模型和 GPU 引擎。按包内 README 提取并更新，再从 AppRun 启动；更新前请用 `:qa!` 彻底退出后台旧进程。
+```sh
+cd voice-engine
+NV_BACKEND=cpu scripts/build.sh
+NV_BACKEND=cpu NV_CPU_VARIANT=avx2 scripts/build.sh
+NV_BACKEND=vulkan scripts/build.sh
+# 可选 CUDA 组件：需要 CUDA SDK，仅构建机器需要
+NV_BACKEND=cuda scripts/build.sh
+cd ..
+npm run package:full
+```
+
+打包脚本默认生成轻量完整 AppImage，不生成补丁包；`--offline` 可保留包含权重的离线发行流程。需要 patchelf、noto-fonts-cjk 和 Tauri 开发依赖。`scripts/export_model_catalog.py` 将模型分成最多 256 MiB 的静态文件，生成完整及分块 SHA-256 清单。仅在至少两个实际 HTTPS 渠道通过检查后启用下载源。当前模型渠道为 GitHub、Hugging Face 与 hf-mirror 网络网关（后两者共用上游存储）；CUDA 组件由 Hugging Face 与 hf-mirror 提供。ModelScope 仅在实际发布验证后启用。凭据只从本地工具配置读取，不写入应用或源码。

@@ -25,6 +25,9 @@ pub struct Preferences {
     pub voice_models_dir: String,
     pub voice_speaker: String,
     pub voice_automatic: bool,
+    pub voice_backend: String,
+    pub voice_power_mode: String,
+    pub voice_model_id: String,
 }
 
 impl Default for Preferences {
@@ -44,6 +47,9 @@ impl Default for Preferences {
             voice_models_dir: String::new(),
             voice_speaker: "Uncle_Fu".into(),
             voice_automatic: true,
+            voice_backend: "auto".into(),
+            voice_power_mode: "eco".into(),
+            voice_model_id: "qwen3-tts-1.7b-customvoice-f16".into(),
         }
     }
 }
@@ -76,6 +82,20 @@ impl Preferences {
         }
         if !["Uncle_Fu", "Serena"].contains(&self.voice_speaker.as_str()) {
             self.voice_speaker = "Uncle_Fu".into();
+        }
+        if !["auto", "cpu", "cuda", "vulkan"].contains(&self.voice_backend.as_str()) {
+            self.voice_backend = "auto".into();
+        }
+        if !["eco", "balanced"].contains(&self.voice_power_mode.as_str()) {
+            self.voice_power_mode = "eco".into();
+        }
+        if ![
+            "qwen3-tts-1.7b-customvoice-f16",
+            "qwen3-tts-1.7b-customvoice-q5_k",
+        ]
+        .contains(&self.voice_model_id.as_str())
+        {
+            self.voice_model_id = "qwen3-tts-1.7b-customvoice-f16".into();
         }
     }
 }
