@@ -8,6 +8,7 @@ import { parseCommand, type PanelName } from './commands';
 import { Reader } from './reader';
 import { VoiceUI } from './voice-ui';
 import { ModelsUI } from './model-ui';
+import { UpdatesUI } from './update-ui';
 import { setVoicePlatform, voiceTransport } from './voice-transport';
 import { defaults, type Book, type Bootstrap, type Position, type Preferences } from './types';
 
@@ -89,6 +90,8 @@ const models = new ModelsUI({
   preferences: () => prefs, persist: persistPreferences, fail, voiceStatus: () => voice.status,
 });
 
+const updates = new UpdatesUI({ fail, beforeInstall: async () => { await saveCurrentProgress(); await persistPreferences(); } });
+
 function applyAppearance() {
   const root = app.querySelector<HTMLElement>('.window')!;
   const dark = prefs.theme === 'dark';
@@ -96,6 +99,7 @@ function applyAppearance() {
   const end = dark ? [239, 239, 223] : [39, 47, 41];
   const rgb = bg.map((channel, i) => Math.round(channel + (end[i] - channel) * prefs.contrast));
   root.dataset.theme = prefs.theme;
+  document.documentElement.style.colorScheme = prefs.theme;
   root.dataset.hideToolbar = String(prefs.hideToolbar);
   root.dataset.font = prefs.fontFamily;
   root.style.setProperty('--reader-bg', `rgba(${bg.join(',')},${prefs.backgroundOpacity})`);
@@ -149,8 +153,8 @@ function renderPanel() {
   if (panel) voice.closeOverlays();
   panelElement.hidden = panel === null;
   panelElement.classList.toggle('search-panel', panel === 'search');
-  if (!panel) { panelElement.replaceChildren(); models.detach(); viewport.focus({ preventScroll: true }); return; }
-  models.detach();
+  if (!panel) { panelElement.replaceChildren(); models.detach(); updates.detach(); viewport.focus({ preventScroll: true }); return; }
+  models.detach(); updates.detach();
   switch (panel) {
     case 'settings':
       panelElement.innerHTML = `${panelHeader('阅读设置')}<div class="panel-body">
@@ -173,10 +177,11 @@ function renderPanel() {
         ${data.wayland ? '<p class="note">隐藏 / 恢复：在 niri 中绑定 <code>moyu --toggle</code>。</p>' : `<form class="shortcut-form"><label class="setting"><span>隐藏 / 恢复快捷键</span><input name="shortcut" type="text" value="${escape(prefs.shortcut)}" spellcheck="false" aria-label="隐藏 / 恢复快捷键"></label><button class="secondary" type="submit">应用快捷键</button></form>`}
         <button class="text-button" data-action="reset">恢复默认外观</button>
         <button class="text-button" data-action="voice">朗读设置与控制</button>
-        <div class="divider"></div><div class="action-row"><button class="secondary" data-action="help">键位帮助</button><button class="text-button" data-action="quit">退出应用</button></div>
+        <div data-update-settings></div><div class="divider"></div><div class="action-row"><button class="secondary" data-action="help">键位帮助</button><button class="text-button" data-action="quit">退出应用</button></div>
         ${!bridge.native ? '<p class="note preview-note">浏览器预览 · 窗口透明、隐藏与全局快捷键请在桌面应用中体验。</p>' : ''}
       </div>`;
       models.attach(panelElement.querySelector<HTMLElement>('[data-model-settings]'));
+      updates.attach(panelElement.querySelector<HTMLElement>('[data-update-settings]'));
       break;
     case 'library':
       panelElement.innerHTML = `${panelHeader('打开小说')}<div class="panel-body">${encodingSelect()}<button class="primary wide" data-action="open">选择 TXT / EPUB</button>${book && book.encoding !== 'EPUB' ? '<button class="text-button" data-action="reopen">用所选编码重新打开当前书</button>' : ''}${!bridge.native ? '<button class="text-button" data-action="sample">打开阅读示例</button>' : ''}<p class="section-label">最近阅读</p>${filterRow()}<div class="panel-list">${recentItems()}</div></div>`;
@@ -661,6 +666,7 @@ async function initialize() {
       if (event.payload.type === 'drop' && event.payload.paths[0]) { dropOverlay.hidden = true; void openPath(event.payload.paths[0]); }
     });
     await listen('reader-hiding', () => { void saveCurrentProgress(); void persistPreferences(); });
+    await listen('reader-open-settings', () => { if (panel !== 'settings') openPanel('settings'); });
     await listen('reader-shown', () => { if (!panel) viewport.focus({ preventScroll: true }); });
     await listen<string>('reader-open-file', event => { void openPath(event.payload); });
   } else {

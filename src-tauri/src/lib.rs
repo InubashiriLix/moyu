@@ -2,6 +2,8 @@ mod books;
 mod model_commands;
 mod models;
 mod state;
+mod tray;
+mod updater;
 mod voice;
 
 use books::Book;
@@ -343,7 +345,12 @@ pub fn run() {
             model_commands::model_status,
             model_commands::model_download,
             model_commands::model_control,
-            model_commands::model_import
+            model_commands::model_import,
+            updater::update_status,
+            updater::update_check,
+            updater::update_download,
+            updater::update_cancel,
+            updater::update_install
         ])
         .setup(move |app| {
             // The single-instance plugin forwards a secondary --hide before setup.
@@ -371,6 +378,14 @@ pub fn run() {
             voice::set_models(model_manager.clone(), model_root);
             app.manage(model_manager);
             app.manage(voice::VoiceService::new(app.handle().clone()));
+            let emitter = app.handle().clone();
+            app.manage(updater::Updater::new(
+                app.path().app_data_dir()?.join("updates"),
+                app.env().appimage.as_ref().map(std::path::PathBuf::from),
+                std::sync::Arc::new(move |status| {
+                    let _ = emitter.emit("update-progress", status);
+                }),
+            ));
             let window = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
@@ -403,30 +418,8 @@ pub fn run() {
             if let Err(e) = install_shortcut(app.handle(), &saved.preferences.shortcut) {
                 *app.state::<NativeState>().shortcut_error.lock().unwrap() = Some(e);
             }
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::{
-                    menu::{Menu, MenuItem},
-                    tray::TrayIconBuilder,
-                };
-                let restore = MenuItem::with_id(app, "restore", "显示 / 隐藏", true, None::<&str>)?;
-                let exit = MenuItem::with_id(app, "quit", "退出 Moyu", true, None::<&str>)?;
-                let menu = Menu::with_items(app, &[&restore, &exit])?;
-                TrayIconBuilder::new()
-                    .icon(tauri::image::Image::from_bytes(include_bytes!(
-                        "../icons/tray.png"
-                    ))?)
-                    .icon_as_template(true)
-                    .tooltip("Moyu · 摸鱼阅读")
-                    .menu(&menu)
-                    .on_menu_event(|app, event| match event.id.as_ref() {
-                        "restore" => {
-                            let _ = toggle(app);
-                        }
-                        "quit" => app.exit(0),
-                        _ => {}
-                    })
-                    .build(app)?;
+            if let Err(error) = tray::install(app.handle()) {
+                eprintln!("无法创建托盘图标：{error}");
             }
             window.show()?;
             Ok(())

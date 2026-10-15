@@ -1,5 +1,5 @@
 pub mod schema;
-mod transport;
+pub(crate) mod transport;
 
 use fs2::FileExt;
 use schema::{Catalog, CatalogEntry, DownloadStatus};

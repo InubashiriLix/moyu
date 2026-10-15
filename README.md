@@ -66,7 +66,7 @@
 
 淡色背景与侧边标记显示当前播放段落。画面默认跟随；手动滚动、搜索或跳转后继续朗读但不拉回画面，按 `gc` 或点击“回到朗读处”恢复跟随。定位依据音频设备回调实际消费的 PCM，排除暂停、预缓冲及欠载静音；设备自身的输出延迟不包含在定位中。隐藏窗口后继续，切换书籍或退出应用时停止，启动应用不会自动朗读。
 
-默认男声 Uncle Fu，可选女声 Serena，自动语气开启。声音和语气在下一次开始时生效。模型按需加载，空闲或暂停 60 秒卸载；缓存复用及长暂停恢复由引擎负责。朗读期间底部控制栏保持可见，停止后恢复原本的安静阅读界面。
+默认男声 Uncle Fu，可选女声 Serena，自动语气开启。声音和语气在下一次开始时生效。模型按需加载，省电模式空闲或暂停 15 秒卸载，均衡模式为 60 秒；缓存复用及长暂停恢复由引擎负责。朗读期间底部控制栏保持可见，停止后恢复原本的安静阅读界面。
 
 在“引擎位置”中指定包含 `libnovel_voice.so` 与 `nv-worker` 的引擎目录，以及包含 F16 主模型和 tokenizer 的模型目录。也可设置 `MOYU_NV_ENGINE_DIR` / `MOYU_NV_MODELS_DIR`。开发构建使用 `voice-engine/build-cpu/bin`；模型可以本地导入或设置环境变量指定；发布构建默认查找 `${XDG_DATA_HOME:-~/.local/share}/novel-voice/runtime` 与 `models/gguf`。引擎需要新版播放位置接口（ABI 1）；旧版会提示重新构建。默认轻量安装包包含 CPU / Vulkan 引擎，模型和可选 CUDA 运行库通过设置下载；使用引擎现有构建目录时应保留其 GGML/CUDA 动态库依赖，不要只复制两个文件。
 
@@ -76,20 +76,27 @@ cd /home/inubashiri/Projects/moyu
 npm run desktop
 ```
 
+## 托盘与应用更新
+
+Linux（包括 niri + Wayland + DMS）和 macOS 均提供托盘菜单：显示／隐藏阅读窗口、设置／模型／更新、暂停／继续朗读、停止和退出。隐藏窗口不会移除托盘或停止朗读；退出会结束后台进程。
+
+按 `s` 在设置中手动点击“检查更新”，从本项目 GitHub Release 获取稳定版信息；不后台轮询。Linux x86_64 可在应用内下载完整轻量 AppImage，支持断点续传、取消后继续，并校验 GitHub 发布的 SHA-256。模型和阅读进度保留在用户数据目录，无需随程序更新重新下载。
+
+如果 AppImage 属于当前用户且文件、目录均可写，可点击“安装更新并退出”：在同一目录写入校验过的新文件、保留带时间戳的旧版备份后原子替换，退出后重新打开生效。若使用 sudo 安装、文件属于 root，或安装目录不可写，只下载到用户数据目录的 `updates` 子目录并显示路径，请按原安装方式手动替换。应用不会调用 sudo，也不修改系统目录权限。非 AppImage 安装请继续使用原安装工具。
+
 ## niri / Wayland
 
-应用原生使用 Wayland，不通过 XWayland 绕过限制。启用固定 GTK app-id `app.moyu.reader`，便于窗口规则匹配。
+应用原生使用 Wayland，不通过 XWayland 绕过限制。GTK app-id 在不同打包方式下可能为 `moyu` 或 `app.moyu.reader`，附带规则同时匹配两者；可用 `niri msg -j windows` 确认。
 
 把 [configs/niri.kdl](configs/niri.kdl) 的规则与绑定合并到 niri 配置。`moyu` 必须在 PATH 上；也可以改成 AppImage 的绝对路径。应用不会自动改写配置。niri 25.01+ 支持浮动窗口，较新的规则可用性以本机 `niri validate` 为准。
 
 ```kdl
 window-rule {
-    match app-id=r#"^app\.moyu\.reader$"#
+    match app-id=r#"^(moyu|app\.moyu\.reader)$"#
     open-floating true
     draw-border-with-background false
     focus-ring { off; }
     border { off; }
-    on-xdg-activate "focus"
 }
 binds {
     Ctrl+Alt+M repeat=false { spawn "moyu" "--toggle"; }

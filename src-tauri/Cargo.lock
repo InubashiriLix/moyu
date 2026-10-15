@@ -2314,7 +2314,7 @@ dependencies = [
 
 [[package]]
 name = "moyu"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "ego-tree",
  "encoding_rs",
@@ -2324,6 +2324,7 @@ dependencies = [
  "reqwest 0.12.28",
  "roxmltree",
  "scraper",
+ "semver",
  "serde",
  "serde_json",
  "sha2",

@@ -514,6 +514,9 @@ impl VoiceService {
         let (sender, receiver) = mpsc::channel();
         let thread = thread::spawn(move || {
             run(receiver, move |state| {
+                let handle = app.clone();
+                let phase = state.phase.clone();
+                let _ = app.run_on_main_thread(move || crate::tray::update_voice(&handle, &phase));
                 let _ = app.emit("voice-status", state);
             })
         });
@@ -528,6 +531,11 @@ impl VoiceService {
             .send(Message { action, reply })
             .map_err(|_| "朗读服务已关闭。")?;
         rx.recv().map_err(|_| "朗读服务已关闭。")?
+    }
+    pub fn control_current(&self, action: &str) -> Result<(), String> {
+        let status = self.call(Action::Status)?;
+        self.call(Action::Control(status.request_id, action.into()))
+            .map(|_| ())
     }
     pub fn set_book(&self, book: Book) -> Result<(), String> {
         self.call(Action::Book(book)).map(|_| ())

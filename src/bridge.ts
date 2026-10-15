@@ -172,3 +172,19 @@ export async function drag() { if (native) await getCurrentWindow().startDraggin
 export async function resize(direction: 'North' | 'South' | 'East' | 'West' | 'NorthEast' | 'NorthWest' | 'SouthEast' | 'SouthWest') {
   if (native) await getCurrentWindow().startResizeDragging(direction);
 }
+
+export async function updateStatus(): Promise<import('./types').UpdateStatus> {
+  if (native) return invoke('update_status');
+  return { phase: 'idle', currentVersion: '', latestVersion: null, downloadedBytes: 0, totalBytes: 0, path: null, error: null, canInstall: false, installNote: '请在 Linux 桌面应用中检查更新。' };
+}
+export async function updateCheck(): Promise<import('./types').UpdateStatus> {
+  if (!native) throw new Error('请在 Linux 桌面应用中检查更新。');
+  return invoke('update_check');
+}
+export async function updateDownload(): Promise<import('./types').UpdateStatus> { return invoke('update_download'); }
+export async function updateCancel(): Promise<void> { return invoke('update_cancel'); }
+export async function updateInstall(): Promise<void> { return invoke('update_install'); }
+export async function onUpdateProgress(callback: (status: import('./types').UpdateStatus) => void) {
+  if (!native) return () => {};
+  return listen<import('./types').UpdateStatus>('update-progress', event => callback(event.payload));
+}

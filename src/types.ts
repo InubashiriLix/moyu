@@ -58,3 +58,15 @@ export interface VoiceStatus {
   paragraphStart: number | null; paragraphEnd: number | null; offset: number | null; error: string | null;
   effectiveBackend?: string | null; device?: string | null; fallbackReason?: string | null;
 }
+
+export interface UpdateStatus {
+  phase: 'idle' | 'checking' | 'available' | 'latest' | 'downloading' | 'verifying' | 'ready' | 'installed' | 'error' | 'cancelled';
+  currentVersion: string;
+  latestVersion: string | null;
+  downloadedBytes: number;
+  totalBytes: number;
+  path: string | null;
+  error: string | null;
+  canInstall: boolean;
+  installNote: string;
+}

@@ -3,13 +3,18 @@
 :root { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans CJK SC', sans-serif; color: #37463b; background: transparent; font-synthesis: none; }
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-button, input, select { font: inherit; }
+button, input, select { font: inherit; color-scheme: inherit; }
 button { cursor: pointer; color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #738c60; outline-offset: 2px; }
 button { -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
-.window { --surface: #f7f6ef; --ink: #37463b; --muted: #7a8275; --line: #dce0d4; --accent: #405b41; --soft: #e8ebdf; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--reader-bg, #f7f6ef); border-radius: 6px; color: var(--ink); }
-.window[data-theme='dark'] { --surface: #242a25; --ink: #d5ddcd; --muted: #96a391; --line: #404a3f; --accent: #c1d6a4; --soft: #323b30; }
+.window { --surface: #f7f6ef; --ink: #37463b; --muted: #626c5b; --error: #ad382b; color-scheme: light; --line: #dce0d4; --accent: #405b41; --soft: #e8ebdf; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--reader-bg, #f7f6ef); border-radius: 6px; color: var(--ink); }
+.window[data-theme='dark'] { color-scheme: dark; --error: #f0a396; --surface: #242a25; --ink: #d5ddcd; --muted: #96a391; --line: #404a3f; --accent: #c1d6a4; --soft: #323b30; }
+/* WebKit can reuse inherited styles while replacing a settings subtree during
+   a theme switch. Make the panel content depend on the theme selector too. */
+.window[data-theme='light'] .panel-body, .window[data-theme='light'] .voice-settings { color-scheme: light; color: var(--ink); }
+.window[data-theme='dark'] .panel-body, .window[data-theme='dark'] .voice-settings { color-scheme: dark; color: var(--ink); }
+
 .toolbar { position: absolute; z-index: 4; top: 0; left: 5px; right: 5px; height: 27px; display: flex; align-items: center; gap: 1px; opacity: 0; transition: opacity 150ms; user-select: none; border-radius: 4px; background: var(--surface); }
 .window:hover .toolbar, .toolbar:focus-within, .window:has(.welcome:not([hidden])) .toolbar { opacity: 1; }
 .toolbar-hotspot { display: none; position: absolute; z-index: 5; top: 0; left: 8px; right: 8px; height: 8px; cursor: move; }
@@ -95,7 +100,9 @@ kbd { font-family: ui-monospace, 'SF Mono', monospace; font-size: 10px; border: 
 .setting > span { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 11px; margin-bottom: 8px; }
 output { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); }
 input[type='range'] { display: block; width: 100%; height: 15px; accent-color: var(--accent); cursor: ew-resize; margin: 0; }
-input[type='text'], select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--ink); font-size: 11px; }
+input:not([type]), input[type='text'], select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--ink); font-size: 11px; }
+select option, select optgroup { color: var(--ink); background: var(--surface); }
+input::placeholder { color: var(--muted); opacity: 1; }
 input[type='checkbox'] { accent-color: var(--accent); }
 .toggle-setting { display: flex; align-items: center; justify-content: space-between; margin: 19px 0; font-size: 11px; }
 .shortcut-form .setting { margin-bottom: 8px; }
@@ -155,7 +162,7 @@ code { font-size: 10px; font-family: ui-monospace, monospace; }
 .model-tag,.model-size,.model-status,.model-source,.model-path,.model-progress-text { font-size:11px; opacity:.8; }
 .model-tag { border:1px solid #8885; border-radius:4px; padding:1px 4px; }
 .model-status,.model-source,.model-error,.model-path { margin:6px 0; }
-.model-error { font-size:11px; color:#c95848; }
+.model-error { font-size:11px; color:var(--error); }
 .model-progress-track { display:block; height:4px; border-radius:4px; background:#8883; overflow:hidden; }
 .model-progress-bar { display:block; height:100%; background:currentColor; transition:width .2s; }
 .model-accel { font-size:11px; }
