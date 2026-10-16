@@ -1,9 +1,63 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
-import { defaults, type Book, type Bootstrap, type Position, type Preferences, type SavedState } from './types';
+import { defaults, type Book, type Bootstrap, type CatalogEntry, type DownloadStatus, type Position, type Preferences, type SavedState, type VoiceDevices, type VoiceStatus } from './types';
 
 export const native = isTauri();
+
+/** Shown whenever an action needs the desktop shell (browser preview cannot download or probe devices). */
+export const desktopOnlyMessage = '浏览器预览不支持模型下载与设备检测，请在桌面应用中使用。';
+const desktopOnly = () => new Error(desktopOnlyMessage);
+
+export async function voiceStart(requestId: number, bookId: string, position: Position): Promise<VoiceStatus> {
+  if (!native) throw new Error('浏览器预览不支持朗读，请使用桌面应用。');
+  return invoke('voice_start', { request: { requestId, bookId, position } });
+}
+export async function voiceControl(requestId: number, action: string): Promise<VoiceStatus> {
+  if (!native) throw new Error('浏览器预览不支持朗读，请使用桌面应用。');
+  return invoke('voice_control', { requestId, action });
+}
+export async function voiceStatus(): Promise<VoiceStatus | null> { return native ? invoke('voice_status') : null; }
+
+// --- Model catalog / download management (desktop only; all networking lives in Rust) ---
+
+/** List of downloadable models and accelerator components. Empty in the browser preview. */
+export async function modelCatalog(): Promise<CatalogEntry[]> { return native ? invoke('model_catalog') : []; }
+/** Current download status for every catalog entry. Empty in the browser preview. */
+export async function modelStatus(): Promise<DownloadStatus[]> { return native ? invoke('model_status') : []; }
+/** Ask Rust to start downloading a catalog entry. Refuses in the browser preview. */
+export async function modelDownload(id: string): Promise<DownloadStatus | void> {
+  if (!native) throw desktopOnly();
+  return invoke('model_download', { id });
+}
+/** Pause, resume or cancel an in-flight download. Refuses in the browser preview. */
+export async function modelControl(id: string, action: 'pause' | 'resume' | 'cancel'): Promise<DownloadStatus | void> {
+  if (!native) throw desktopOnly();
+  return invoke('model_control', { id, action });
+}
+/** Import a model the user already downloaded into an existing directory. */
+export async function modelImport(id: string, directory: string): Promise<DownloadStatus | void> {
+  if (!native) throw desktopOnly();
+  return invoke('model_import', { id, directory });
+}
+/** Native detection of speech backends/devices. Empty in the browser preview. */
+export async function voiceDevices(): Promise<VoiceDevices> {
+  if (!native) return { backends: [] };
+  return invoke('voice_devices');
+}
+/** Subscribe to `model-progress` events. Resolves to an unlisten function. */
+export function onModelProgress(callback: (status: DownloadStatus) => void): Promise<() => void> {
+  if (!native) return Promise.resolve(() => {});
+  return listen<DownloadStatus>('model-progress', event => callback(event.payload));
+}
+/** Open the native directory picker for `model_import`. Returns null if cancelled or unsupported. */
+export async function chooseDirectory(): Promise<string | null> {
+  if (!native) return null;
+  const directory = await open({ directory: true, multiple: false });
+  return typeof directory === 'string' ? directory : null;
+}
+
 const previewKey = 'moyu-browser-preview-v1';
 const previewBooks = new Map<string, Book>();
 let previewSaved: SavedState;
@@ -117,4 +171,20 @@ export async function quit() {
 export async function drag() { if (native) await getCurrentWindow().startDragging(); }
 export async function resize(direction: 'North' | 'South' | 'East' | 'West' | 'NorthEast' | 'NorthWest' | 'SouthEast' | 'SouthWest') {
   if (native) await getCurrentWindow().startResizeDragging(direction);
+}
+
+export async function updateStatus(): Promise<import('./types').UpdateStatus> {
+  if (native) return invoke('update_status');
+  return { phase: 'idle', currentVersion: '', latestVersion: null, downloadedBytes: 0, totalBytes: 0, path: null, error: null, canInstall: false, installNote: '请在 Linux 桌面应用中检查更新。' };
+}
+export async function updateCheck(): Promise<import('./types').UpdateStatus> {
+  if (!native) throw new Error('请在 Linux 桌面应用中检查更新。');
+  return invoke('update_check');
+}
+export async function updateDownload(): Promise<import('./types').UpdateStatus> { return invoke('update_download'); }
+export async function updateCancel(): Promise<void> { return invoke('update_cancel'); }
+export async function updateInstall(): Promise<void> { return invoke('update_install'); }
+export async function onUpdateProgress(callback: (status: import('./types').UpdateStatus) => void) {
+  if (!native) return () => {};
+  return listen<import('./types').UpdateStatus>('update-progress', event => callback(event.payload));
 }

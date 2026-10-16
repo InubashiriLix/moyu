@@ -1,6 +1,6 @@
 [package]
 name = "moyu"
-version = "0.2.1"
+version = "0.4.4"
 description = "A small, quiet, keyboard-driven novel reader"
 authors = ["Moyu contributors"]
 edition = "2021"
@@ -27,6 +27,10 @@ roxmltree = "0.20"
 scraper = "0.24"
 ego-tree = "0.10"
 percent-encoding = "2"
+libloading = "0.8"
+fs2 = "0.4"
+semver = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls-native-roots"] }
 
 [profile.release]
 strip = true

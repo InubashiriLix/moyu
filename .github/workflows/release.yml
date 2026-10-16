@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   release:
+    # These releases use validated local builds with the native voice engine.
+    # Prevent reader-only CI bundles from replacing their assets or notes.
+    if: github.ref_name != 'v0.3.0' && !startsWith(github.ref_name, 'v0.4.')
     strategy:
       fail-fast: false
       matrix:

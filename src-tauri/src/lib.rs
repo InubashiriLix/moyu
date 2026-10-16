@@ -1,5 +1,10 @@
 mod books;
+mod model_commands;
+mod models;
 mod state;
+mod tray;
+mod updater;
+mod voice;
 
 use books::Book;
 use serde::Serialize;
@@ -56,6 +61,15 @@ async fn open_book(
         tauri::async_runtime::spawn_blocking(move || books::open(&path, encoding.as_deref()))
             .await
             .map_err(|e| e.to_string())??;
+    let voice_book = book.clone();
+    let voice_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        voice_app
+            .state::<voice::VoiceService>()
+            .set_book(voice_book)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     let store = app.state::<Store>();
     let mut saved = store.saved.lock().map_err(|e| e.to_string())?;
     saved.last_book = Some(book.id.clone());
@@ -254,6 +268,25 @@ fn remember_geometry(app: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    // On macOS this macro embeds a process-wide Info.plist symbol. Generate
+    // the context once and share it between the CLI checks and GUI startup.
+    let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+    if std::env::args().any(|arg| arg == "--voice-check" || arg == "--voice-smoke") {
+        let check =
+            tauri::utils::platform::resource_dir(context.package_info(), &tauri::Env::default())
+                .map_err(|e| e.to_string())
+                .and_then(|root| {
+                    voice::bundle_check(root, std::env::args().any(|arg| arg == "--voice-smoke"))
+                });
+        match check {
+            Ok(result) => println!("{result}"),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let open_path = file_argument(
         &std::env::args().collect::<Vec<_>>(),
         &std::env::current_dir()
@@ -305,7 +338,21 @@ pub fn run() {
             save_marks,
             save_preferences,
             hide_window,
-            quit
+            quit,
+            voice::voice_start,
+            voice::voice_control,
+            voice::voice_status,
+            voice::voice_devices,
+            model_commands::model_catalog,
+            model_commands::model_status,
+            model_commands::model_download,
+            model_commands::model_control,
+            model_commands::model_import,
+            updater::update_status,
+            updater::update_check,
+            updater::update_download,
+            updater::update_cancel,
+            updater::update_install
         ])
         .setup(move |app| {
             // The single-instance plugin forwards a secondary --hide before setup.
@@ -317,6 +364,34 @@ pub fn run() {
             let store = Store::load(app.path().app_data_dir()?);
             let saved = store.saved.lock().unwrap().clone();
             app.manage(store);
+            voice::set_bundle(app.path().resource_dir()?);
+            let catalog: models::schema::Catalog =
+                serde_json::from_str(include_str!("../model-catalog.json"))?;
+            let model_root = app.path().app_data_dir()?.join("voice");
+            let emitter = app.handle().clone();
+            let model_manager = models::ModelManager::new(
+                model_root.clone(),
+                catalog,
+                std::sync::Arc::new(move |status| {
+                    let _ = emitter.emit("model-progress", status);
+                }),
+            )
+            .map_err(std::io::Error::other)?;
+            voice::set_models(model_manager.clone(), model_root);
+            app.manage(model_manager);
+            app.manage(voice::VoiceService::new(app.handle().clone()));
+            let emitter = app.handle().clone();
+            #[cfg(target_os = "linux")]
+            let update_target = app.env().appimage.as_ref().map(std::path::PathBuf::from);
+            #[cfg(not(target_os = "linux"))]
+            let update_target = None;
+            app.manage(updater::Updater::new(
+                app.path().app_data_dir()?.join("updates"),
+                update_target,
+                std::sync::Arc::new(move |status| {
+                    let _ = emitter.emit("update-progress", status);
+                }),
+            ));
             let window = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
@@ -349,30 +424,8 @@ pub fn run() {
             if let Err(e) = install_shortcut(app.handle(), &saved.preferences.shortcut) {
                 *app.state::<NativeState>().shortcut_error.lock().unwrap() = Some(e);
             }
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::{
-                    menu::{Menu, MenuItem},
-                    tray::TrayIconBuilder,
-                };
-                let restore = MenuItem::with_id(app, "restore", "显示 / 隐藏", true, None::<&str>)?;
-                let exit = MenuItem::with_id(app, "quit", "退出 Moyu", true, None::<&str>)?;
-                let menu = Menu::with_items(app, &[&restore, &exit])?;
-                TrayIconBuilder::new()
-                    .icon(tauri::image::Image::from_bytes(include_bytes!(
-                        "../icons/tray.png"
-                    ))?)
-                    .icon_as_template(true)
-                    .tooltip("Moyu · 摸鱼阅读")
-                    .menu(&menu)
-                    .on_menu_event(|app, event| match event.id.as_ref() {
-                        "restore" => {
-                            let _ = toggle(app);
-                        }
-                        "quit" => app.exit(0),
-                        _ => {}
-                    })
-                    .build(app)?;
+            if let Err(error) = tray::install(app.handle()) {
+                eprintln!("无法创建托盘图标：{error}");
             }
             window.show()?;
             Ok(())
@@ -390,10 +443,13 @@ pub fn run() {
                 let _ = hide(window.app_handle());
             }
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("无法启动 Moyu")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                if let Some(voice) = app.try_state::<voice::VoiceService>() {
+                    voice.shutdown();
+                }
                 if app.try_state::<Store>().is_some() {
                     remember_geometry(app);
                 }

@@ -2,12 +2,11 @@
 // Keep the application at normal compositor opacity: transparency is controlled
 // independently for text and background inside Moyu.
 window-rule {
-    match app-id=r#"^app\.moyu\.reader$"#
+    match app-id=r#"^(moyu|app\.moyu\.reader)$"#
     open-floating true
     draw-border-with-background false
     focus-ring { off; }
     border { off; }
-    on-xdg-activate "focus"
 }
 
 binds {

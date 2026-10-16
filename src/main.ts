@@ -6,6 +6,10 @@ import { comparePosition, type Match } from './model';
 import { VimKeys, type KeyAction } from './keys';
 import { parseCommand, type PanelName } from './commands';
 import { Reader } from './reader';
+import { VoiceUI } from './voice-ui';
+import { ModelsUI } from './model-ui';
+import { UpdatesUI } from './update-ui';
+import { setVoicePlatform, voiceTransport } from './voice-transport';
 import { defaults, type Book, type Bootstrap, type Position, type Preferences } from './types';
 
 type Panel = PanelName | null;
@@ -15,6 +19,7 @@ app.innerHTML = `
     <header class="toolbar">
       <div class="drag-handle" title="拖动窗口"><span class="brand">摸鱼</span><span class="book-label"></span></div>
       <button class="icon-button" data-action="library" title="打开 / 最近阅读 (o)" aria-label="打开 / 最近阅读">⌑</button>
+      <button class="icon-button voice-button" data-action="voice" title="朗读 (gr / gp / gs)" aria-label="朗读">♪</button>
       <button class="icon-button" data-action="settings" title="设置 (s)" aria-label="设置">⋯</button>
       <button class="icon-button hide-button" data-action="hide" title="隐藏窗口" aria-label="隐藏窗口">−</button>
     </header>
@@ -66,7 +71,7 @@ let panelLastG = 0;
 let markPending: 'set' | 'jump' | null = null;
 let historyIndex = 0;
 const commandHistory: string[] = [];
-const commandNames = ['index', 'toc', 'set ', 'q', 'qa!', 'quit', 'wq', 'x', 'font increase', 'font decrease', 'help', 'open', 'library', 'marks', 'delmark ', 'theme dark', 'theme light', 'chapter ', 'search ', 'hide', 'reset'];
+const commandNames = ['index', 'toc', 'set ', 'q', 'qa!', 'quit', 'wq', 'x', 'font increase', 'font decrease', 'help', 'open', 'library', 'marks', 'delmark ', 'theme dark', 'theme light', 'chapter ', 'search ', 'hide', 'reset', 'read', 'pause', 'resume', 'stop', 'follow'];
 const worker = new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' });
 
 const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
@@ -77,6 +82,15 @@ function toast(message: unknown, sticky = false) {
   toastTimer = setTimeout(() => { toastElement.hidden = true; }, sticky ? 10000 : 4500);
 }
 function fail(error: unknown) { toast(error, true); }
+const voice = new VoiceUI(app.querySelector<HTMLElement>('.window')!, reader, {
+  book: () => book, ready: () => !busy, preferences: () => prefs, persist: persistPreferences, fail,
+  changed: () => { syncVoiceControls(); models.onVoiceStatus(); },
+});
+const models = new ModelsUI({
+  preferences: () => prefs, persist: persistPreferences, fail, voiceStatus: () => voice.status,
+});
+
+const updates = new UpdatesUI({ fail, beforeInstall: async () => { await saveCurrentProgress(); await persistPreferences(); } });
 
 function applyAppearance() {
   const root = app.querySelector<HTMLElement>('.window')!;
@@ -85,6 +99,7 @@ function applyAppearance() {
   const end = dark ? [239, 239, 223] : [39, 47, 41];
   const rgb = bg.map((channel, i) => Math.round(channel + (end[i] - channel) * prefs.contrast));
   root.dataset.theme = prefs.theme;
+  document.documentElement.style.colorScheme = prefs.theme;
   root.dataset.hideToolbar = String(prefs.hideToolbar);
   root.dataset.font = prefs.fontFamily;
   root.style.setProperty('--reader-bg', `rgba(${bg.join(',')},${prefs.backgroundOpacity})`);
@@ -135,13 +150,22 @@ function marksItems() {
 function filterRow() { return `<input class="panel-filter" type="text" placeholder="输入以过滤（按 / 聚焦）" value="${escape(panelFilter)}" aria-label="过滤列表">`; }
 
 function renderPanel() {
+  if (panel) voice.closeOverlays();
   panelElement.hidden = panel === null;
   panelElement.classList.toggle('search-panel', panel === 'search');
-  if (!panel) { panelElement.replaceChildren(); viewport.focus({ preventScroll: true }); return; }
+  if (!panel) { panelElement.replaceChildren(); models.detach(); updates.detach(); viewport.focus({ preventScroll: true }); return; }
+  models.detach(); updates.detach();
   switch (panel) {
     case 'settings':
       panelElement.innerHTML = `${panelHeader('阅读设置')}<div class="panel-body">
         <div class="segmented" aria-label="主题"><button data-theme="light" aria-pressed="${prefs.theme === 'light'}">浅色</button><button data-theme="dark" aria-pressed="${prefs.theme === 'dark'}">深色</button></div>
+        <p class="section-label">朗读</p>
+        <label class="setting"><span>朗读声音</span><select name="voiceSpeaker" aria-label="朗读声音"><option value="Uncle_Fu"${prefs.voiceSpeaker === 'Uncle_Fu' ? ' selected' : ''}>男声 · Uncle Fu</option><option value="Serena"${prefs.voiceSpeaker === 'Serena' ? ' selected' : ''}>女声 · Serena</option></select></label>
+        <label class="toggle-setting"><span>自动语气</span><input name="voiceAutomatic" type="checkbox"${prefs.voiceAutomatic ? ' checked' : ''}></label>
+        <div class="voice-actions"><button data-action="voice-read"${!voiceTransport.available || !book ? ' disabled' : ''}>从当前段开始 <kbd>gr</kbd></button><button data-action="voice-toggle"${!voice.active ? ' disabled' : ''}>暂停／继续 <kbd>gp</kbd></button><button data-action="voice-stop"${!voice.active ? ' disabled' : ''}>停止 <kbd>gs</kbd></button></div>
+        <p class="note">正文中：gv 打开声音设置，gf 选女声，gm 选男声。声音与语气在下次开始时生效；设置内 j/k 选择、h/l 调节。</p>
+        <div class="model-settings" data-model-settings></div>
+        <div class="divider"></div>
         <label class="setting"><span>阅读字体</span><select name="fontFamily">${[['jetbrains', 'JetBrainsMono Nerd Font Mono'], ['systemMono', '系统等宽'], ['serif', '宋体 / 衬线']].map(([value, title]) => `<option value="${value}"${value === prefs.fontFamily ? ' selected' : ''}>${title}</option>`).join('')}</select></label>
         <label class="toggle-setting"><span>隐藏顶部栏</span><input type="checkbox" name="hideToolbar"${prefs.hideToolbar ? ' checked' : ''}></label>
         ${range('backgroundOpacity', '背景透明度', 0, 100, 1, '%', 100)}
@@ -152,9 +176,12 @@ function renderPanel() {
         ${data.wayland ? '<p class="note">Wayland 的浮动与置顶由窗口管理器控制。niri 请使用随应用提供的浮动规则。</p>' : `<label class="toggle-setting"><span>窗口置顶</span><input type="checkbox" name="alwaysOnTop"${prefs.alwaysOnTop ? ' checked' : ''}></label>`}
         ${data.wayland ? '<p class="note">隐藏 / 恢复：在 niri 中绑定 <code>moyu --toggle</code>。</p>' : `<form class="shortcut-form"><label class="setting"><span>隐藏 / 恢复快捷键</span><input name="shortcut" type="text" value="${escape(prefs.shortcut)}" spellcheck="false" aria-label="隐藏 / 恢复快捷键"></label><button class="secondary" type="submit">应用快捷键</button></form>`}
         <button class="text-button" data-action="reset">恢复默认外观</button>
-        <div class="divider"></div><div class="action-row"><button class="secondary" data-action="help">键位帮助</button><button class="text-button" data-action="quit">退出应用</button></div>
+        <button class="text-button" data-action="voice">朗读设置与控制</button>
+        <div data-update-settings></div><div class="divider"></div><div class="action-row"><button class="secondary" data-action="help">键位帮助</button><button class="text-button" data-action="quit">退出应用</button></div>
         ${!bridge.native ? '<p class="note preview-note">浏览器预览 · 窗口透明、隐藏与全局快捷键请在桌面应用中体验。</p>' : ''}
       </div>`;
+      models.attach(panelElement.querySelector<HTMLElement>('[data-model-settings]'));
+      updates.attach(panelElement.querySelector<HTMLElement>('[data-update-settings]'));
       break;
     case 'library':
       panelElement.innerHTML = `${panelHeader('打开小说')}<div class="panel-body">${encodingSelect()}<button class="primary wide" data-action="open">选择 TXT / EPUB</button>${book && book.encoding !== 'EPUB' ? '<button class="text-button" data-action="reopen">用所选编码重新打开当前书</button>' : ''}${!bridge.native ? '<button class="text-button" data-action="sample">打开阅读示例</button>' : ''}<p class="section-label">最近阅读</p>${filterRow()}<div class="panel-list">${recentItems()}</div></div>`;
@@ -166,7 +193,7 @@ function renderPanel() {
       panelElement.innerHTML = `${panelHeader('书签')}<div class="panel-body toc-list"><div class="panel-list">${marksItems()}</div></div>`;
       break;
     case 'help':
-      panelElement.innerHTML = `${panelHeader('键位帮助')}<div class="panel-body"><p class="note">正文区域支持 Vim 常用键位；输入框中正常输入。</p><dl class="key-list">${[['j / k', '向下 / 向上滚动'], ['5j / 3k', '数字前缀：重复移动'], ['Ctrl+d / u', '向下 / 向上半页'], ['Ctrl+f / b', '向下 / 向上一页'], ['gg / G', '书首 / 书尾'], ['50G', '跳到全书 50%'], ['/', '搜索整本书'], ['n / N', '下一个 / 上一个结果'], ['o / s / t', '打开书 / 设置 / 目录'], ['m{a-z}', '记录书签'], ['’{a-z}', '跳到书签'], [':', '命令行'], ['Esc', '关闭当前面板'], ['?', '显示帮助']].map(([key, title]) => `<div><dt><kbd>${key}</kbd></dt><dd>${title}</dd></div>`).join('')}</dl><p class="note">命令行命令：<code>:index</code> 目录、<code>:set</code> 设置、<code>:font increase|decrease</code> 字号、<code>:marks</code> 书签、<code>:delmark a</code> 删书签、<code>:q</code> 关面板、<code>:qa!</code> 退出。面板内 <kbd>j</kbd>/<kbd>k</kbd> 选择、<kbd>Enter</kbd> 确认、书签页 <kbd>d</kbd> 删除、设置页 <kbd>h</kbd>/<kbd>l</kbd> 调节。</p><p class="note">${data.wayland ? '全局隐藏 / 恢复由窗口管理器绑定 moyu --toggle。' : `全局隐藏 / 恢复：${escape(prefs.shortcut)}`}</p><p class="note">拖动窗口顶部可移动，拖动边缘可缩放。关闭窗口会隐藏，设置中可退出。</p></div>`;
+      panelElement.innerHTML = `${panelHeader('键位帮助')}<div class="panel-body"><p class="note">正文区域支持 Vim 常用键位；输入框中正常输入。</p><dl class="key-list">${[['j / k', '向下 / 向上滚动'], ['5j / 3k', '数字前缀：重复移动'], ['Ctrl+d / u', '向下 / 向上半页'], ['Ctrl+f / b', '向下 / 向上一页'], ['gg / G', '书首 / 书尾'], ['gr / gp / gs', '段首朗读 / 暂停或继续 / 停止'], ['gc', '回到朗读处并跟随'], ['gv / gf / gm', '声音设置 / 选择女声 / 选择男声'], ['50G', '跳到全书 50%'], ['/', '搜索整本书'], ['n / N', '下一个 / 上一个结果'], ['o / s / t', '打开书 / 设置 / 目录'], ['m{a-z}', '记录书签'], ['’{a-z}', '跳到书签'], [':', '命令行'], ['Esc', '关闭当前面板'], ['?', '显示帮助']].map(([key, title]) => `<div><dt><kbd>${key}</kbd></dt><dd>${title}</dd></div>`).join('')}</dl><p class="note">命令行命令：<code>:index</code> 目录、<code>:set</code> 设置、<code>:font increase|decrease</code> 字号、<code>:marks</code> 书签、<code>:delmark a</code> 删书签、<code>:q</code> 关面板、<code>:qa!</code> 退出；<code>:read</code>、<code>:pause</code>、<code>:resume</code>、<code>:stop</code>、<code>:follow</code> 控制朗读。面板内 <kbd>j</kbd>/<kbd>k</kbd> 选择、<kbd>Enter</kbd> 确认、书签页 <kbd>d</kbd> 删除、设置页 <kbd>h</kbd>/<kbd>l</kbd> 调节。</p><p class="note">${data.wayland ? '全局隐藏 / 恢复由窗口管理器绑定 moyu --toggle。' : `全局隐藏 / 恢复：${escape(prefs.shortcut)}`}</p><p class="note">拖动窗口顶部可移动，拖动边缘可缩放。关闭窗口会隐藏，设置中可退出。</p></div>`;
       break;
     case 'search': {
       panelElement.innerHTML = `<form class="search-form"><span aria-hidden="true">/</span><input type="search" name="query" value="${escape(query)}" placeholder="搜索整本书" aria-label="搜索整本书" autocomplete="off"><span class="search-count"></span><button type="button" class="icon-button" data-action="previous" title="上一个结果" aria-label="上一个结果">↑</button><button type="button" class="icon-button" data-action="next" title="下一个结果" aria-label="下一个结果">↓</button><button type="button" class="icon-button" data-action="close" aria-label="关闭搜索">×</button></form>`;
@@ -295,6 +322,11 @@ async function runCommand(line: string) {
   const command = parseCommand(line);
   if (!command) return;
   switch (command.type) {
+    case 'voice':
+      if (command.action === 'read') await voice.read();
+      else if (command.action === 'follow') voice.returnToSpeech();
+      else await voice.control(command.action);
+      break;
     case 'panel':
       if (command.panel === 'search' && command.query !== undefined) {
         query = command.query; searchVersion++;
@@ -380,6 +412,7 @@ function persistPreferences() {
 function settingsChanged() { applyAppearance(); clearTimeout(settingsTimer); settingsTimer = setTimeout(() => { void persistPreferences(); }, 250); }
 
 async function adopt(next: Book) {
+  await voice.bookChanged();
   await saveCurrentProgress();
   await document.fonts.ready;
   book = next;
@@ -445,12 +478,16 @@ function applyMark(mode: 'set' | 'jump', letter: string) {
 
 async function action(name: string) {
   switch (name) {
+    case 'voice': panel = null; renderPanel(); voice.showSettings(); break;
+    case 'voice-read': panel = null; renderPanel(); await voice.read(); break;
+    case 'voice-toggle': await voice.control('toggle'); break;
+    case 'voice-stop': await voice.control('stop'); break;
     case 'open': await choose(); break;
     case 'settings': case 'toc': case 'library': case 'help': case 'search': openPanel(name); break;
     case 'close': panel = null; renderPanel(); break;
     case 'hide': await saveCurrentProgress(); await bridge.hideWindow(); break;
     case 'quit': await saveCurrentProgress(); await persistPreferences(); await bridge.quit(); break;
-    case 'reset': prefs = { ...defaults, shortcut: prefs.shortcut, alwaysOnTop: prefs.alwaysOnTop }; settingsChanged(); renderPanel(); break;
+    case 'reset': prefs = { ...defaults, shortcut: prefs.shortcut, alwaysOnTop: prefs.alwaysOnTop, voiceEngineDir: prefs.voiceEngineDir, voiceModelsDir: prefs.voiceModelsDir, voiceSpeaker: prefs.voiceSpeaker, voiceAutomatic: prefs.voiceAutomatic, voiceBackend: prefs.voiceBackend, voicePowerMode: prefs.voicePowerMode, voiceModelId: prefs.voiceModelId }; settingsChanged(); renderPanel(); break;
     case 'reopen': if (book) await openPath(book.path); break;
     case 'sample': await adopt(await bridge.sampleBook()); break;
     case 'next': nextMatch(1); break;
@@ -494,6 +531,8 @@ panelElement.addEventListener('change', event => {
   if (input.name === 'encoding') encoding = input.value;
   if (input.name === 'alwaysOnTop') { prefs.alwaysOnTop = input.checked; settingsChanged(); }
   if (input.name === 'hideToolbar') { prefs.hideToolbar = input.checked; settingsChanged(); }
+  if (input.name === 'voiceSpeaker') { prefs.voiceSpeaker = input.value as Preferences['voiceSpeaker']; void persistPreferences(); }
+  if (input.name === 'voiceAutomatic') { prefs.voiceAutomatic = input.checked; void persistPreferences(); }
   if (input.name === 'fontFamily') { prefs.fontFamily = input.value as Preferences['fontFamily']; settingsChanged(); }
 });
 panelElement.addEventListener('keydown', event => {
@@ -529,10 +568,30 @@ cmdline.addEventListener('submit', event => {
   void runCommand(value).catch(fail);
 });
 
+function syncVoiceControls() {
+  for (const button of panelElement.querySelectorAll<HTMLButtonElement>('[data-action="voice-toggle"], [data-action="voice-stop"]')) button.disabled = !voice.active;
+}
+async function selectVoice(speaker: Preferences['voiceSpeaker']) {
+  prefs.voiceSpeaker = speaker;
+  await persistPreferences();
+  toast(`${speaker === 'Serena' ? '已选择女声 Serena' : '已选择男声 Uncle Fu'}，下次开始朗读时生效。`);
+}
+function openVoiceSettings() {
+  openPanel('settings');
+  const selector = panelElement.querySelector<HTMLElement>('[name="voiceSpeaker"]');
+  if (selector) { panelCursor = panelNavItems().indexOf(selector); syncPanelCursor(); }
+}
 function vimAction(result: KeyAction) {
   const { action: name, count } = result;
   const line = prefs.fontSize * prefs.lineHeight, page = viewport.clientHeight;
   switch (name) {
+    case 'voiceSettings': openVoiceSettings(); break;
+    case 'voiceFemale': void selectVoice('Serena').catch(fail); break;
+    case 'voiceMale': void selectVoice('Uncle_Fu').catch(fail); break;
+    case 'voiceRead': void voice.read().catch(fail); break;
+    case 'voiceToggle': void voice.control('toggle').catch(fail); break;
+    case 'voiceStop': void voice.control('stop').catch(fail); break;
+    case 'voiceFollow': voice.returnToSpeech(); break;
     case 'down': reader.scroll(line * count); break;
     case 'up': reader.scroll(-line * count); break;
     case 'halfDown': reader.scroll(page / 2 * count); break;
@@ -551,6 +610,13 @@ function vimAction(result: KeyAction) {
 document.addEventListener('keydown', event => {
   const target = event.target as HTMLElement;
   if (target.closest('.cmdline')) return;
+  if (voice.open) {
+    markPending = null;
+    keys.action(event, true);
+    if (event.key === 'Escape') { event.preventDefault(); voice.closeOverlays(); viewport.focus({ preventScroll: true }); }
+    return;
+  }
+  if (event.repeat && (event.key === 'g' || ['r', 'p', 's', 'c', 'v', 'f', 'm'].includes(event.key))) return;
   const editable = target.matches('input, textarea, select') || target.isContentEditable;
   if (book && !panel && !editable && !event.ctrlKey && !event.metaKey && !event.altKey) {
     if (markPending) {
@@ -559,7 +625,7 @@ document.addEventListener('keydown', event => {
       markPending = null;
       event.preventDefault(); return;
     }
-    if (event.key === 'm') { markPending = 'set'; event.preventDefault(); return; }
+    if (event.key === 'm' && !keys.awaitingChord) { markPending = 'set'; event.preventDefault(); return; }
     if (event.key === "'") { markPending = 'jump'; event.preventDefault(); return; }
   } else if (markPending) markPending = null;
   if (panel && panelKey(event)) { event.preventDefault(); return; }
@@ -590,7 +656,7 @@ for (const edge of app.querySelectorAll<HTMLElement>('[data-resize]')) {
 }
 
 async function initialize() {
-  data = await bridge.bootstrap(); prefs = { ...defaults, ...data.saved.preferences }; applyAppearance(); renderWelcome();
+  data = await bridge.bootstrap(); setVoicePlatform(data.platform); prefs = { ...defaults, ...data.saved.preferences }; applyAppearance(); renderWelcome();
   await document.fonts.ready;
   if (data.warning) toast(data.warning, true);
   if (data.shortcutError) toast(data.shortcutError, true);
@@ -600,6 +666,7 @@ async function initialize() {
       if (event.payload.type === 'drop' && event.payload.paths[0]) { dropOverlay.hidden = true; void openPath(event.payload.paths[0]); }
     });
     await listen('reader-hiding', () => { void saveCurrentProgress(); void persistPreferences(); });
+    await listen('reader-open-settings', () => { if (panel !== 'settings') openPanel('settings'); });
     await listen('reader-shown', () => { if (!panel) viewport.focus({ preventScroll: true }); });
     await listen<string>('reader-open-file', event => { void openPath(event.payload); });
   } else {

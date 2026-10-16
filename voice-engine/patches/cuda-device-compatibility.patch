@@ -1,0 +1,31 @@
+diff --git a/engine/ggml/include/ggml-cuda.h b/engine/ggml/include/ggml-cuda.h
+index 22ad2c0..d5b8fc3 100644
+--- a/engine/ggml/include/ggml-cuda.h
++++ b/engine/ggml/include/ggml-cuda.h
+@@ -34,6 +34,8 @@ GGML_BACKEND_API ggml_backend_buffer_type_t ggml_backend_cuda_split_buffer_type(
+ GGML_BACKEND_API ggml_backend_buffer_type_t ggml_backend_cuda_host_buffer_type(void);
+ 
+ GGML_BACKEND_API int  ggml_backend_cuda_get_device_count(void);
++// Internal deployment check: validates actual kernel availability before model loading.
++GGML_BACKEND_API bool ggml_backend_cuda_device_has_kernel(int device);
+ GGML_BACKEND_API void ggml_backend_cuda_get_device_description(int device, char * description, size_t description_size);
+ GGML_BACKEND_API void ggml_backend_cuda_get_device_memory(int device, size_t * free, size_t * total);
+ 
+diff --git a/engine/ggml/src/ggml-cuda/ggml-cuda.cu b/engine/ggml/src/ggml-cuda/ggml-cuda.cu
+index a45da09..7e77f82 100644
+--- a/engine/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/engine/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -5242,3 +5242,13 @@ ggml_backend_t ggml_backend_cuda_init(int device) {
+ }
+ 
+ GGML_BACKEND_DL_IMPL(ggml_backend_cuda_reg)
++
++// Compile this probe with exactly the same architecture flags as GGML kernels.
++static __global__ void nv_compatibility_probe() {}
++bool ggml_backend_cuda_device_has_kernel(int device) {
++    if (cudaSetDevice(device) != cudaSuccess) return false;
++    cudaFuncAttributes attributes{};
++    const cudaError_t result = cudaFuncGetAttributes(&attributes, nv_compatibility_probe);
++    if (result != cudaSuccess) cudaGetLastError();
++    return result == cudaSuccess;
++}

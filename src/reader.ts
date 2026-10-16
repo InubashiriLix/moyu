@@ -1,4 +1,4 @@
-import { blockAt, blocksFor, Heights, type Block, type Match } from './model';
+import { blockAt, blocksFor, Heights, type Block, type Match, type Paragraph } from './model';
 import type { Book, Position, Preferences } from './types';
 
 export class Reader {
@@ -11,16 +11,27 @@ export class Reader {
   private frame = 0;
   private settling = false;
   private match: Match | null = null;
+  private speech: Paragraph | null = null;
   private width = 0;
   private resizeFrame = 0;
   private anchor: Position = { chapter: 0, offset: 0 };
   onPosition: (position: Position) => void = () => {};
+  onManualNavigation: () => void = () => {};
 
   constructor(readonly viewport: HTMLElement, prefs: Preferences) {
     this.prefs = prefs;
     this.content = document.createElement('div');
     this.content.className = 'reader-content';
     viewport.append(this.content);
+    viewport.addEventListener('wheel', () => this.onManualNavigation(), { passive: true });
+    viewport.addEventListener('touchmove', () => this.onManualNavigation(), { passive: true });
+    viewport.addEventListener('keydown', event => {
+      if ([' ', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(event.key)) this.onManualNavigation();
+    });
+    viewport.addEventListener('pointerdown', event => {
+      const rect = viewport.getBoundingClientRect();
+      if (event.button === 0 && event.clientX >= rect.right - 12) this.onManualNavigation();
+    });
     viewport.addEventListener('scroll', () => {
       if (!this.frame) this.frame = requestAnimationFrame(() => {
         this.frame = 0;
@@ -43,6 +54,7 @@ export class Reader {
     this.book = book;
     this.blocks = blocksFor(book);
     this.match = null;
+    this.speech = null;
     this.anchor = this.clamp(position);
     this.reflow(this.anchor);
   }
@@ -74,7 +86,7 @@ export class Reader {
     this.heights = new Heights(this.blocks.map(b => this.estimate(b)));
     this.mounted.clear();
     this.content.replaceChildren();
-    this.go(position);
+    this.go(position, true);
   }
 
   private paragraph(index: number): HTMLElement {
@@ -82,6 +94,7 @@ export class Reader {
     const element = document.createElement(block.heading ? 'h2' : 'p');
     element.className = `text-block${block.heading ? ' chapter-heading' : ''}${block.continuation ? ' continuation' : ''}`;
     element.dataset.block = String(index);
+    this.decorateSpeech(element, block);
     const match = this.match;
     if (match && !block.heading && block.chapter === match.chapter && match.offset < block.offset + block.text.length && match.offset + match.length > block.offset) {
       const start = Math.max(0, match.offset - block.offset), end = Math.min(block.text.length, match.offset + match.length - block.offset);
@@ -164,9 +177,18 @@ export class Reader {
     }
     return { chapter: block.chapter, offset: block.offset + low };
   }
+  speechStartPosition(): Position {
+    const position = this.position();
+    if (!this.blocks.length) return position;
+    const index = this.heights.at(this.viewport.scrollTop), block = this.blocks[index], element = this.mounted.get(index);
+    const last = element && !block.heading ? this.rangeAt(element, block.text.length - 1)?.getBoundingClientRect() : null;
+    // Padding below a paragraph belongs to the following readable paragraph.
+    return last && last.bottom <= this.viewport.getBoundingClientRect().top ? { chapter: block.chapter, offset: block.offset + block.text.length } : position;
+  }
 
-  go(position: Position) {
+  go(position: Position, automatic = false) {
     if (!this.blocks.length) return;
+    if (!automatic) this.onManualNavigation();
     position = this.clamp(position);
     this.anchor = position;
     const index = blockAt(this.blocks, position);
@@ -203,9 +225,9 @@ export class Reader {
     this.end();
   }
   refresh() { this.reflow(this.anchor); }
-  scroll(pixels: number) { this.viewport.scrollBy({ top: pixels, behavior: 'instant' }); }
+  scroll(pixels: number) { this.onManualNavigation(); this.viewport.scrollBy({ top: pixels, behavior: 'instant' }); }
   start() { this.go({ chapter: 0, offset: 0 }); }
-  end() { this.viewport.scrollTop = this.heights.total; this.render(); this.anchor = this.position(); this.onPosition(this.anchor); }
+  end() { this.onManualNavigation(); this.viewport.scrollTop = this.heights.total; this.render(); this.anchor = this.position(); this.onPosition(this.anchor); }
   highlight(match: Match | null) {
     this.match = match;
     for (const element of this.mounted.values()) element.remove();
@@ -213,4 +235,25 @@ export class Reader {
     if (match) this.go(match); else this.render();
   }
   get blockCount() { return this.blocks.length; }
+  positionForElement(element: Element): Position | null {
+    const node = element.closest<HTMLElement>('[data-block]');
+    const block = node ? this.blocks[Number(node.dataset.block)] : null;
+    return block ? { chapter: block.chapter, offset: Math.max(0, block.offset) } : null;
+  }
+  private decorateSpeech(element: HTMLElement, block: Block) {
+    const p = this.speech;
+    const active = !!p && !block.heading && block.chapter === p.chapter && block.offset < p.end && block.offset + block.text.length > p.offset;
+    element.classList.toggle('speaking', active);
+    if (active) element.setAttribute('aria-current', 'true'); else element.removeAttribute('aria-current');
+  }
+  highlightSpeech(paragraph: Paragraph | null) {
+    this.speech = paragraph;
+    for (const [index, element] of this.mounted) this.decorateSpeech(element, this.blocks[index]);
+  }
+  revealSpeech(position: Position, force = false) {
+    const index = blockAt(this.blocks, position), element = this.mounted.get(index);
+    const range = element ? this.rangeAt(element, Math.max(0, position.offset - this.blocks[index].offset)) : null;
+    const rect = range?.getBoundingClientRect(), view = this.viewport.getBoundingClientRect();
+    if (force || !rect || rect.top < view.top || rect.bottom > view.bottom) this.go(position, true);
+  }
 }

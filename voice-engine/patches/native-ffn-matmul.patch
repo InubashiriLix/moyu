@@ -1,0 +1,94 @@
+diff --git a/engine/src/transformer/transformer_graph_code_pred.cpp b/engine/src/transformer/transformer_graph_code_pred.cpp
+index 4b870c6..6c4db85 100644
+--- a/engine/src/transformer/transformer_graph_code_pred.cpp
++++ b/engine/src/transformer/transformer_graph_code_pred.cpp
+@@ -103,8 +103,7 @@ struct ggml_cgraph * transformer_internal::ops::build_code_pred_graph(TTSTransfo
+         gate = ggml_silu(ctx0, gate);
+         cur = ggml_mul(ctx0, gate, up);
+ 
+-        struct ggml_tensor * ffn_down_f32 = ggml_cast(ctx0, layer.ffn_down, GGML_TYPE_F32);
+-        cur = ggml_mul_mat(ctx0, ffn_down_f32, cur);
++        cur = transformer_internal::project_ffn_down(ctx0, layer.ffn_down, cur);
+ 
+         inpL = ggml_add(ctx0, cur, inpFF);
+     }
+@@ -270,8 +269,7 @@ struct ggml_cgraph * transformer_internal::ops::build_code_pred_prefill_graph(TT
+         gate = ggml_silu(ctx0, gate);
+         cur = ggml_mul(ctx0, gate, up);
+ 
+-        struct ggml_tensor * ffn_down_f32 = ggml_cast(ctx0, layer.ffn_down, GGML_TYPE_F32);
+-        cur = ggml_mul_mat(ctx0, ffn_down_f32, cur);
++        cur = transformer_internal::project_ffn_down(ctx0, layer.ffn_down, cur);
+ 
+         inpL = ggml_add(ctx0, cur, inpFF);
+     }
+@@ -458,8 +456,7 @@ struct ggml_cgraph * transformer_internal::ops::build_code_pred_step_graph(TTSTr
+         gate = ggml_silu(ctx0, gate);
+         cur = ggml_mul(ctx0, gate, up);
+ 
+-        struct ggml_tensor * ffn_down_f32 = ggml_cast(ctx0, layer.ffn_down, GGML_TYPE_F32);
+-        cur = ggml_mul_mat(ctx0, ffn_down_f32, cur);
++        cur = transformer_internal::project_ffn_down(ctx0, layer.ffn_down, cur);
+ 
+         inpL = ggml_add(ctx0, cur, inpFF);
+     }
+diff --git a/engine/src/transformer/transformer_graph_talker.cpp b/engine/src/transformer/transformer_graph_talker.cpp
+index 2817d7f..a6cea8f 100644
+--- a/engine/src/transformer/transformer_graph_talker.cpp
++++ b/engine/src/transformer/transformer_graph_talker.cpp
+@@ -147,8 +147,7 @@ struct ggml_cgraph * transformer_internal::ops::build_prefill_forward_graph(TTST
+         gate = ggml_silu(ctx0, gate);
+         cur = ggml_mul(ctx0, gate, up);
+ 
+-        struct ggml_tensor * ffn_down_f32 = ggml_cast(ctx0, layer.ffn_down, GGML_TYPE_F32);
+-        cur = ggml_mul_mat(ctx0, ffn_down_f32, cur);
++        cur = transformer_internal::project_ffn_down(ctx0, layer.ffn_down, cur);
+ 
+         inpL = ggml_add(ctx0, cur, inpFF);
+     }
+@@ -315,8 +314,7 @@ struct ggml_cgraph * transformer_internal::ops::build_step_graph(TTSTransformer
+         gate = ggml_silu(ctx0, gate);
+         cur = ggml_mul(ctx0, gate, up);
+ 
+-        struct ggml_tensor * ffn_down_f32 = ggml_cast(ctx0, layer.ffn_down, GGML_TYPE_F32);
+-        cur = ggml_mul_mat(ctx0, ffn_down_f32, cur);
++        cur = transformer_internal::project_ffn_down(ctx0, layer.ffn_down, cur);
+ 
+         inpL = ggml_add(ctx0, cur, inpFF);
+     }
+diff --git a/engine/src/transformer/transformer_internal.h b/engine/src/transformer/transformer_internal.h
+index 27e99d6..352a0fe 100644
+--- a/engine/src/transformer/transformer_internal.h
++++ b/engine/src/transformer/transformer_internal.h
+@@ -1,5 +1,7 @@
+ #pragma once
+ 
++#include "ggml.h"
++
+ #include <cstddef>
+ #include <cstdint>
+ #include <string>
+@@ -13,6 +15,23 @@ namespace qwen3_tts {
+ class TTSTransformer;
+ namespace transformer_internal {
+ 
++// K-quant -> F32 copies fall back to CPU on CUDA. Keep quantized weights
++// native. CUDA F16 matvec also reads native weights, with F32 accumulation;
++// CPU/Vulkan floating-point behavior remains unchanged.
++inline ggml_tensor * project_ffn_down(ggml_context * ctx, ggml_tensor * weight, ggml_tensor * input) {
++#ifdef GGML_USE_CUDA
++    // Keep multi-token prefill on its original precision path. The native
++    // single-token CUDA kernel retains F32 activations and accumulation.
++    if (!ggml_is_quantized(weight->type) && input->ne[1] != 1)
++        weight = ggml_cast(ctx, weight, GGML_TYPE_F32);
++#else
++    if (!ggml_is_quantized(weight->type)) weight = ggml_cast(ctx, weight, GGML_TYPE_F32);
++#endif
++    auto * result = ggml_mul_mat(ctx, weight, input);
++    if (!ggml_is_quantized(weight->type)) ggml_mul_mat_set_prec(result, GGML_PREC_F32);
++    return result;
++}
++
+ struct debug_trace_config {
+     bool enabled = false;
+     std::string dir;

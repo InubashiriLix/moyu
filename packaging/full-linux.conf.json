@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "resources": {
+      "../packaging/staged/voice/": "voice/"
+    },
+    "linux": {
+      "appimage": { "bundleMediaFramework": false }
+    }
+  }
+}

@@ -3,13 +3,18 @@
 :root { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans CJK SC', sans-serif; color: #37463b; background: transparent; font-synthesis: none; }
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-button, input, select { font: inherit; }
+button, input, select { font: inherit; color-scheme: inherit; }
 button { cursor: pointer; color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #738c60; outline-offset: 2px; }
 button { -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
-.window { --surface: #f7f6ef; --ink: #37463b; --muted: #7a8275; --line: #dce0d4; --accent: #405b41; --soft: #e8ebdf; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--reader-bg, #f7f6ef); border-radius: 6px; color: var(--ink); }
-.window[data-theme='dark'] { --surface: #242a25; --ink: #d5ddcd; --muted: #96a391; --line: #404a3f; --accent: #c1d6a4; --soft: #323b30; }
+.window { --surface: #f7f6ef; --ink: #37463b; --muted: #626c5b; --error: #ad382b; color-scheme: light; --line: #dce0d4; --accent: #405b41; --soft: #e8ebdf; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--reader-bg, #f7f6ef); border-radius: 6px; color: var(--ink); }
+.window[data-theme='dark'] { color-scheme: dark; --error: #f0a396; --surface: #242a25; --ink: #d5ddcd; --muted: #96a391; --line: #404a3f; --accent: #c1d6a4; --soft: #323b30; }
+/* WebKit can reuse inherited styles while replacing a settings subtree during
+   a theme switch. Make the panel content depend on the theme selector too. */
+.window[data-theme='light'] .panel-body, .window[data-theme='light'] .voice-settings { color-scheme: light; color: var(--ink); }
+.window[data-theme='dark'] .panel-body, .window[data-theme='dark'] .voice-settings { color-scheme: dark; color: var(--ink); }
+
 .toolbar { position: absolute; z-index: 4; top: 0; left: 5px; right: 5px; height: 27px; display: flex; align-items: center; gap: 1px; opacity: 0; transition: opacity 150ms; user-select: none; border-radius: 4px; background: var(--surface); }
 .window:hover .toolbar, .toolbar:focus-within, .window:has(.welcome:not([hidden])) .toolbar { opacity: 1; }
 .toolbar-hotspot { display: none; position: absolute; z-index: 5; top: 0; left: 8px; right: 8px; height: 8px; cursor: move; }
@@ -34,6 +39,28 @@ button { -webkit-tap-highlight-color: transparent; }
 .reader-content { position: relative; width: 100%; min-height: 100%; }
 .text-block { position: absolute; left: 20px; right: 20px; margin: 0; padding: 0 0 0.8em; font-weight: 400; overflow-wrap: anywhere; white-space: pre-wrap; }
 .text-block.continuation { padding-bottom: 0; }
+.text-block.speaking { background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: -3px 0 0 color-mix(in srgb, var(--accent) 65%, transparent); border-radius: 2px; }
+.voice-bar { position: absolute; z-index: 6; bottom: 0; left: 0; right: 0; min-height: 30px; display: flex; align-items: center; gap: 3px; padding: 2px 7px; background: var(--surface); color: var(--ink); border-top: 1px solid var(--line); font-size: 10px; }
+.voice-phase { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-bar button, .voice-heading button { flex-shrink: 0; min-width: 27px; min-height: 27px; border: none; border-radius: 4px; color: inherit; background: transparent; }
+.voice-bar button:hover, .voice-heading button:hover { background: var(--soft); }
+.window[data-voice-active='true'] .reader { bottom: 34px; }
+.window[data-voice-active='true'] .status { bottom: 34px; }
+.window[data-voice-active='true'] .panel { bottom: 34px; }
+.window[data-voice-active='true'] .cmdline, .window[data-voice-active='true'] .toast { bottom: 35px; }
+.voice-settings, .voice-menu { position: absolute; z-index: 9; background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 4px 18px #0002; border-radius: 6px; }
+.voice-settings { top: 29px; left: 8px; right: 8px; max-height: calc(100% - 65px); overflow-y: auto; padding: 12px; font-size: 12px; }
+.voice-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.voice-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.voice-actions button { background: var(--soft); color: var(--ink); border: 0; padding: 7px; border-radius: 4px; font-size: 11px; }
+.voice-settings details { font-size: 11px; color: var(--muted); }
+.voice-settings details label { display: block; margin-top: 8px; }
+.voice-settings details input { width: 100%; margin-top: 4px; padding: 6px; font-size: 11px; }
+.voice-menu { padding: 4px; width: min(210px, calc(100% - 8px)); }
+.voice-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; padding: 8px; font-size: 12px; border-radius: 3px; }
+.voice-menu button:hover, .voice-menu button:focus-visible { background: var(--soft); }
+.voice-bar button:focus-visible, .voice-actions button:focus-visible, .voice-heading button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.voice-actions button:disabled, .voice-menu button:disabled, .voice-bar button:disabled { opacity: .45; cursor: default; }
 .chapter-heading { font-size: 1.04em; font-weight: 600; line-height: 1.55; padding-top: 12px; padding-bottom: 16px; }
 mark { color: inherit; background: #bac68988; border-radius: 2px; }
 .status { position: absolute; inset: auto 16px 0; height: 15px; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9px; color: var(--muted); opacity: 0; pointer-events: none; user-select: none; }
@@ -73,7 +100,9 @@ kbd { font-family: ui-monospace, 'SF Mono', monospace; font-size: 10px; border: 
 .setting > span { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 11px; margin-bottom: 8px; }
 output { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); }
 input[type='range'] { display: block; width: 100%; height: 15px; accent-color: var(--accent); cursor: ew-resize; margin: 0; }
-input[type='text'], select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--ink); font-size: 11px; }
+input:not([type]), input[type='text'], select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--ink); font-size: 11px; }
+select option, select optgroup { color: var(--ink); background: var(--surface); }
+input::placeholder { color: var(--muted); opacity: 1; }
 input[type='checkbox'] { accent-color: var(--accent); }
 .toggle-setting { display: flex; align-items: center; justify-content: space-between; margin: 19px 0; font-size: 11px; }
 .shortcut-form .setting { margin-bottom: 8px; }
@@ -122,3 +151,20 @@ code { font-size: 10px; font-family: ui-monospace, monospace; }
 .southwest { bottom: 0; left: 0; cursor: nesw-resize; }
 @media (max-height: 240px) { .welcome { padding-top: 14px; } .welcome-icon, .welcome h1, .welcome > p:first-of-type { display: none; } .welcome .hint { margin-bottom: 8px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.window[data-voice-phase='error'] .voice-phase { white-space: normal; overflow-wrap: anywhere; max-height: 72px; overflow-y: auto; }
+.window[data-voice-phase='error'] .reader, .window[data-voice-phase='error'] .panel { bottom: 84px; }
+
+.model-cards { display:grid; gap:10px; margin:10px 0; }
+.model-card { border:1px solid var(--border, #8885); border-radius:8px; padding:10px; overflow-wrap:anywhere; }
+.model-card-head,.model-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.model-card-head strong { flex:1 1 180px; font-size:12px; }
+.model-tag,.model-size,.model-status,.model-source,.model-path,.model-progress-text { font-size:11px; opacity:.8; }
+.model-tag { border:1px solid #8885; border-radius:4px; padding:1px 4px; }
+.model-status,.model-source,.model-error,.model-path { margin:6px 0; }
+.model-error { font-size:11px; color:var(--error); }
+.model-progress-track { display:block; height:4px; border-radius:4px; background:#8883; overflow:hidden; }
+.model-progress-bar { display:block; height:100%; background:currentColor; transition:width .2s; }
+.model-accel { font-size:11px; }
+.model-actions button { font-size:11px; }
+.model-settings [hidden] { display:none!important; }

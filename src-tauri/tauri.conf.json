@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Moyu",
-  "version": "0.2.1",
+  "version": "0.4.4",
   "identifier": "app.moyu.reader",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -26,8 +26,19 @@
       "../src/assets/fonts/OFL.txt": "licenses/JetBrainsMono-OFL.txt",
       "../src/assets/fonts/NERD-FONTS-LICENSE.txt": "licenses/Nerd-Fonts-LICENSE.txt"
     },
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns"],
-    "macOS": { "minimumSystemVersion": "13.0", "signingIdentity": "-" },
-    "linux": { "deb": {}, "appimage": {} }
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "signingIdentity": "-"
+    },
+    "linux": {
+      "deb": {},
+      "appimage": {}
+    }
   }
 }
