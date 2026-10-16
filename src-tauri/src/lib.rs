@@ -379,9 +379,13 @@ pub fn run() {
             app.manage(model_manager);
             app.manage(voice::VoiceService::new(app.handle().clone()));
             let emitter = app.handle().clone();
+            #[cfg(target_os = "linux")]
+            let update_target = app.env().appimage.as_ref().map(std::path::PathBuf::from);
+            #[cfg(not(target_os = "linux"))]
+            let update_target = None;
             app.manage(updater::Updater::new(
                 app.path().app_data_dir()?.join("updates"),
-                app.env().appimage.as_ref().map(std::path::PathBuf::from),
+                update_target,
                 std::sync::Arc::new(move |status| {
                     let _ = emitter.emit("update-progress", status);
                 }),
