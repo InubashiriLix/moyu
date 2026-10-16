@@ -268,8 +268,10 @@ fn remember_geometry(app: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    // On macOS this macro embeds a process-wide Info.plist symbol. Generate
+    // the context once and share it between the CLI checks and GUI startup.
+    let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
     if std::env::args().any(|arg| arg == "--voice-check" || arg == "--voice-smoke") {
-        let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
         let check =
             tauri::utils::platform::resource_dir(context.package_info(), &tauri::Env::default())
                 .map_err(|e| e.to_string())
@@ -441,7 +443,7 @@ pub fn run() {
                 let _ = hide(window.app_handle());
             }
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("无法启动 Moyu")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
